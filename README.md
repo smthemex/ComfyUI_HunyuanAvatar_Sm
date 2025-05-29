@@ -41,7 +41,9 @@ pip install -r requirements.txt
 |   ├── mp_rank_00_model_states_fp8_map.pt #104K
 |   ├── mp_rank_00_model_states_fp8.pt.pt #24.9G
 ```
-
+4 example
+----
+![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example.png)
 
 
 ## 🔗 BibTeX
