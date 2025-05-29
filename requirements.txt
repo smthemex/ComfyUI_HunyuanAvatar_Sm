@@ -1,6 +1,6 @@
 opencv-python
 diffusers
-transformers
+transformers==4.45.1
 accelerate
 pandas
 numpy
