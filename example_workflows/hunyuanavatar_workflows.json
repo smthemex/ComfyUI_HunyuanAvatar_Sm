@@ -1,0 +1,361 @@
+{
+  "id": "d9390778-d705-4514-a62c-efbab8eda590",
+  "revision": 0,
+  "last_node_id": 6,
+  "last_link_id": 7,
+  "nodes": [
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [
+        20031.48046875,
+        -1058.4403076171875
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "0001.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadAudio",
+      "pos": [
+        20030.572265625,
+        -1323.8948974609375
+      ],
+      "size": [
+        315,
+        136
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "audio_010385_temp.wav",
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 1,
+      "type": "HY_Avatar_Loader",
+      "pos": [
+        20545.669921875,
+        -1332.970458984375
+      ],
+      "size": [
+        315,
+        150
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL_HY_AVATAR_MODEL",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "args",
+          "type": "HY_AVATAR_MODEL_ARGS",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HY_Avatar_Loader"
+      },
+      "widgets_values": [
+        "mp_rank_00_model_states_fp8.pt",
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "type": "HY_Avatar_Sampler",
+      "pos": [
+        20987.470703125,
+        -1187.696533203125
+      ],
+      "size": [
+        315,
+        102
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL_HY_AVATAR_MODEL",
+          "link": 1
+        },
+        {
+          "name": "data_dict",
+          "type": "AVATAR_PREDATA",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HY_Avatar_Sampler"
+      },
+      "widgets_values": [
+        0,
+        "randomize"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        21384.38671875,
+        -1142.6220703125
+      ],
+      "size": [
+        317.4000244140625,
+        238
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 6
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "frame_rate"
+          },
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "image/gif",
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {}
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "HY_Avatar_PreData",
+      "pos": [
+        20512.7109375,
+        -1092.0491943359375
+      ],
+      "size": [
+        425,
+        206
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 4
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "args",
+          "type": "HY_AVATAR_MODEL_ARGS",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "data_dict",
+          "type": "AVATAR_PREDATA",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HY_Avatar_PreData"
+      },
+      "widgets_values": [
+        25,
+        "A person sits cross-legged by a campfire in a forested area.",
+        "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "MODEL_HY_AVATAR_MODEL"
+    ],
+    [
+      2,
+      3,
+      0,
+      2,
+      1,
+      "AVATAR_PREDATA"
+    ],
+    [
+      3,
+      4,
+      0,
+      3,
+      1,
+      "IMAGE"
+    ],
+    [
+      4,
+      5,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ],
+    [
+      5,
+      1,
+      1,
+      3,
+      2,
+      "HY_AVATAR_MODEL_ARGS"
+    ],
+    [
+      6,
+      2,
+      0,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      2,
+      1,
+      6,
+      4,
+      "FLOAT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": [
+        -19943.383164736013,
+        1500.5331048202015
+      ]
+    },
+    "frontendVersion": "1.17.11"
+  },
+  "version": 0.4
+}
