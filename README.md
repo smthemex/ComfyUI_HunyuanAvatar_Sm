@@ -1,9 +1,10 @@
 # ComfyUI_HunyuanAvatar_Sm
-* HunyuanVideo-Avatar: High-Fidelity Audio-Driven Human Animation for Multiple Characters,try it in comfyUI ,if your VRAM >24G
+* [HunyuanVideo-Avatar](https://github.com/Tencent-Hunyuan/HunyuanVideo-Avatar): High-Fidelity Audio-Driven Human Animation for Multiple Characters,try it in comfyUI ,if your VRAM >24G
 
 TIPS:
 -----
-* 注意，此节点只是方便在云端测试用,不一定能跑通.
+* 因为测试的是cpu卸载方案，所以很大几率会报错.目前主要处理数据混杂（音频、图片、text的emb，多种模型）因为cpu卸载带来的各种不兼容，计划能跑才上云。
+* 测试环境:VRam12G，Ram64G,transformer必须指定版本，否则会报错，腾讯都没法解决，所以老实匹配。
 
 
 1.Installation  
