@@ -21,7 +21,7 @@ pip install -r requirements.txt
 
 3 models 
 ----
-* download filse from [tencent/HunyuanVideo-Avatar](https://huggingface.co/tencent/HunyuanVideo-Avatar) 
+* download files from [tencent/HunyuanVideo-Avatar](https://huggingface.co/tencent/HunyuanVideo-Avatar) 
 ```
 ├── ComfyUI/models/HunyuanAvatar/
 |   ├── det_align/
