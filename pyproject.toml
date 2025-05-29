@@ -1,0 +1,15 @@
+[project]
+name = "hunyuanavatar_sm"
+description = "HunyuanVideo-Avatar: High-Fidelity Audio-Driven Human Animation for Multiple Characters,try it in comfyUI ,if your VRAM >24G."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["opencv-python", "diffusers", "transformers", "accelerate", "pandas", "numpy", "einops", "tqdm", "loguru", "imageio", "imageio-ffmpeg", "safetensors", "#gradio==4.42.0", "#fastapi==0.115.12", "#uvicorn==0.34.2", "decord", "librosa", "scikit-video", "ffmpeg"]
+
+[project.urls]
+Repository = "https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "smthemex"
+DisplayName = "ComfyUI_HunyuanAvatar_Sm"
+Icon = ""
