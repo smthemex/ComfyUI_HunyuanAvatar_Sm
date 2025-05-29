@@ -145,7 +145,7 @@ class HunyuanVideoSampler(Inference):
                 self.vae.to('cpu')
                 torch.cuda.empty_cache()
                 
-        face_masks = torch.nn.functional.interpolate(face_masks.float().squeeze(2), 
+        face_masks = torch.nn.functional.interpolate(emb_dict["face_masks"].float().squeeze(2), 
                                                 (ref_latents.shape[-2], 
                                                 ref_latents.shape[-1]), 
                                                 mode="bilinear").unsqueeze(2).to(dtype=ref_latents.dtype)
