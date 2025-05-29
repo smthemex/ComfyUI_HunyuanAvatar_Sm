@@ -1,8 +1,46 @@
 # ComfyUI_HunyuanAvatar_Sm
 * HunyuanVideo-Avatar: High-Fidelity Audio-Driven Human Animation for Multiple Characters,try it in comfyUI ,if your VRAM >24G
 
-# 注意，此节点只是方便在云端测试用。
+TIPS:
+-----
+* 注意，此节点只是方便在云端测试用,不一定能跑通.
 
+
+1.Installation  
+-----
+In the ./ComfyUI /custom_node directory, run the following:   
+```
+git clone https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm.git
+```  
+  
+2.requirements  
+----
+```
+pip install -r requirements.txt
+```
+
+3 models 
+----
+* download filse from [tencent/HunyuanVideo-Avatar](https://huggingface.co/tencent/HunyuanVideo-Avatar) 
+```
+├── ComfyUI/models/HunyuanAvatar/
+|   ├── det_align/
+|         ├──detface.pt
+|   ├── llava_llama_image/
+|         ├──config.json
+|         ├── ...所有json文件以及所有safetensors模型
+|   ├──text_encoder_2/
+|         ├──config.json
+|         ├── ... 所有json文件以及model.safetensors模型
+|   ├──vae/
+|         ├──config.json
+|         ├── pytorch_model.pt
+|   ├──whisper-tiny/
+|         ├──config.json
+|         ├── ... 所有json文件以及model.safetensors模型
+|   ├── mp_rank_00_model_states_fp8_map.pt #104K
+|   ├── mp_rank_00_model_states_fp8.pt.pt #24.9G
+```
 
 
 
