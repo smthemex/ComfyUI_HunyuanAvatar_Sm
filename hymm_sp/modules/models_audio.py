@@ -560,9 +560,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         vec = vec + motion_pose_vec
         fps_vec = self.fps_proj(additional_kwargs["fps"])   # (b, 3072)
         vec = vec + fps_vec
+        
         audio_feature_all = self.audio_proj(additional_kwargs["audio_prompts"])
 
         # text modulation
+        print(f"text_states_2.dtype: {text_states_2.dtype}") # fp16 MLPEmbedder bf16
+        
+
         vec = vec + self.vector_in(text_states_2)
 
         # guidance modulation
@@ -574,16 +578,23 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 vec = vec + self.guidance_in(guidance)
 
         if CPU_OFFLOAD: torch.cuda.empty_cache()
-
+        print(f"ref_latents.dtype: {ref_latents.dtype}")
+        ref_latents = ref_latents.to(dtype=torch.float16)
+        print(f"ref_latents.dtype: {ref_latents.dtype}")
         # Embed image and text.
         ref_latents_first = ref_latents[:, :, :1].clone()
         img, shape_mask = self.img_in(img)
+        
         ref_latents,_ = self.ref_in(ref_latents)
         ref_latents_first,_ = self.img_in(ref_latents_first)
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
         elif self.text_projection == "single_refiner":
             # [b, l, h]
+            print(f"txt.dtype: {txt.dtype}")
+            print(f"text_mask.dtype: {text_mask.dtype}")
+            if text_mask is not None:
+                print(f"text_mask.dtype: {text_mask.dtype}")
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
