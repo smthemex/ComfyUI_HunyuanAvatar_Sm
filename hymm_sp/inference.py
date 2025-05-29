@@ -10,7 +10,7 @@ from .modules.parallel_states import (
     nccl_info,
 )
 from .modules.fp8_optimization import convert_fp8_linear
-
+import gc
 
 class Inference(object):
     def __init__(self, 
@@ -149,6 +149,9 @@ class Inference(object):
         else:
             raise KeyError(f"Key '{load_key}' not found in the checkpoint. Existed keys: {state_dict.keys()}")
         model.load_state_dict(state_dict, strict=False)
+        del state_dict
+        torch.cuda.empty_cache()
+        gc.collect()
         return model
 
     def get_exp_dir_and_ckpt_id(self):
