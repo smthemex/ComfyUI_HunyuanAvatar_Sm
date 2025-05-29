@@ -33,7 +33,8 @@ def load_text_encoder(text_encoder_type,
         text_encoder.final_layer_norm = text_encoder.text_model.final_layer_norm
     elif text_encoder_type == "llava-llama-3-8b":
         text_encoder = LlavaForConditionalGeneration.from_pretrained(text_encoder_path, low_cpu_mem_usage=True)
-        text_encoder.final_layer_norm = text_encoder.language_model.model.norm
+        #text_encoder.final_layer_norm = text_encoder.language_model.model.norm
+        text_encoder.final_layer_norm = text_encoder.language_model.norm
     else:
         raise ValueError(f"Unsupported text encoder type: {text_encoder_type}")
 
