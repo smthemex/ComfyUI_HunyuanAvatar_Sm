@@ -1,0 +1,25 @@
+﻿videoid,image,audio,prompt,fps
+8,assets/image/1.png,assets/audio/2.WAV,A person sits cross-legged by a campfire in a forested area.,25
+9,assets/image/2.png,assets/audio/2.WAV,"A person with long blonde hair wearing a green jacket, standing in a forested area during twilight.",25
+10,assets/image/3.png,assets/audio/2.WAV,A person playing guitar by a campfire in a forest.,25
+11,assets/image/4.png,assets/audio/2.WAV,"A person wearing a green jacket stands in a forested area, with sunlight filtering through the trees.",25
+12,assets/image/src1.png,assets/audio/2.WAV,A person sits cross-legged by a campfire in a forest at dusk.,25
+13,assets/image/src2.png,assets/audio/2.WAV,A person in a green jacket stands in a forest at dusk.,25
+14,assets/image/src3.png,assets/audio/2.WAV,A person playing guitar by a campfire in a forest.,25
+15,assets/image/src4.png,assets/audio/2.WAV,"A person in a green jacket stands in a forest, backlit by sunlight.",25
+16,assets/image/1.png,assets/audio/3.WAV,A person sits cross-legged by a campfire in a forested area.,25
+17,assets/image/2.png,assets/audio/3.WAV,"A person with long blonde hair wearing a green jacket, standing in a forested area during twilight.",25
+18,assets/image/3.png,assets/audio/3.WAV,A person playing guitar by a campfire in a forest.,25
+19,assets/image/4.png,assets/audio/3.WAV,"A person wearing a green jacket stands in a forested area, with sunlight filtering through the trees.",25
+20,assets/image/src1.png,assets/audio/3.WAV,A person sits cross-legged by a campfire in a forest at dusk.,25
+21,assets/image/src2.png,assets/audio/3.WAV,A person in a green jacket stands in a forest at dusk.,25
+22,assets/image/src3.png,assets/audio/3.WAV,A person playing guitar by a campfire in a forest.,25
+23,assets/image/src4.png,assets/audio/3.WAV,"A person in a green jacket stands in a forest, backlit by sunlight.",25
+24,assets/image/1.png,assets/audio/4.WAV,A person sits cross-legged by a campfire in a forested area.,25
+25,assets/image/2.png,assets/audio/4.WAV,"A person with long blonde hair wearing a green jacket, standing in a forested area during twilight.",25
+26,assets/image/3.png,assets/audio/4.WAV,A person playing guitar by a campfire in a forest.,25
+27,assets/image/4.png,assets/audio/4.WAV,"A person wearing a green jacket stands in a forested area, with sunlight filtering through the trees.",25
+28,assets/image/src1.png,assets/audio/4.WAV,A person sits cross-legged by a campfire in a forest at dusk.,25
+29,assets/image/src2.png,assets/audio/4.WAV,A person in a green jacket stands in a forest at dusk.,25
+30,assets/image/src3.png,assets/audio/4.WAV,A person playing guitar by a campfire in a forest.,25
+31,assets/image/src4.png,assets/audio/4.WAV,"A person in a green jacket stands in a forest, backlit by sunlight.",25
