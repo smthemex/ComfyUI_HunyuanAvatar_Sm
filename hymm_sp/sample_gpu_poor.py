@@ -19,7 +19,7 @@ def audio_image_load(base_dir, device):
     feature_extractor = AutoFeatureExtractor.from_pretrained(os.path.join(base_dir,"whisper-tiny"))
 
     # load face align model
-    align_instance = AlignImage("cuda", det_path=os.path.join(base_dir, 'detface.pt'))
+    align_instance = AlignImage("cuda", det_path=os.path.join(base_dir, 'det_align/detface.pt'))
 
     return wav2vec, feature_extractor, align_instance
 
