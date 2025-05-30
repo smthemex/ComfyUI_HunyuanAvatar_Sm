@@ -15,5 +15,5 @@ safetensors
 #uvicorn==0.34.2
 decord
 librosa
-scikit-video
+#scikit-video
 ffmpeg
