@@ -2,10 +2,9 @@ import os
 import numpy as np
 import torch
 from einops import rearrange
-#from .config import parse_args
+import imageio
 from .sample_inference_audio import HunyuanVideoSampler
 from .data_kits.face_align import AlignImage
-from .data_kits.ffmpeg_utils import save_video
 from transformers import WhisperModel
 from transformers import AutoFeatureExtractor
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
@@ -226,7 +225,7 @@ def hunyuan_avatar_main(args,hunyuan_video_sampler,json_loader,emb_data,infer_mi
         final_frames = np.stack(final_frames, axis=0)
         
         #if rank == 0: 
-        save_video(final_frames, output_path, n_rows=len(final_frames), fps=fps.item())
+        imageio.mimsave(output_path, final_frames, fps=fps.item())
         os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
     return final_frames
 
