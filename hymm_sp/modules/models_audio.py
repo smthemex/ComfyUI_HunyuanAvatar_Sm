@@ -25,9 +25,10 @@ from .parallel_states import (
     all_gather,
 )
 
-CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", 0))
+#CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", 0))
+CPU_OFFLOAD = os.environ.get("CPU_OFFLOAD", True)
 DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
-print(f'models: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
+#print(f'models: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
 class DoubleStreamBlock(nn.Module):
     def __init__(
@@ -179,7 +180,7 @@ class DoubleStreamBlock(nn.Module):
                 max_seqlen_kv,
             )
             attn = attn.view(img_k.shape[0], max_seqlen_q, -1).contiguous()
-        else:
+        else: #分布式
                 attn, _ = parallel_attention(
                 (img_q, txt_q),
                 (img_k, txt_k),
@@ -564,7 +565,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         audio_feature_all = self.audio_proj(additional_kwargs["audio_prompts"])
 
         # text modulation
-        print(f"text_states_2.dtype: {text_states_2.dtype}") # fp16 MLPEmbedder bf16
+        #print(f"text_states_2.dtype: {text_states_2.dtype}") # fp16 MLPEmbedder bf16 fix it in args
         
 
         vec = vec + self.vector_in(text_states_2)
@@ -578,27 +579,24 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 vec = vec + self.guidance_in(guidance)
 
         if CPU_OFFLOAD: torch.cuda.empty_cache()
-        print(f"ref_latents.dtype: {ref_latents.dtype}")
-        ref_latents = ref_latents.to(dtype=torch.float16)
-        print(f"ref_latents.dtype: {ref_latents.dtype}")
+        #print(f"ref_latents.dtype: {ref_latents.dtype}",x.dtype)#torch.float32 torch.float16
+        ref_latents = ref_latents.to(dtype=torch.float16) #TODO
+      
         # Embed image and text.
         ref_latents_first = ref_latents[:, :, :1].clone()
         img, shape_mask = self.img_in(img)
-        
+        #print(f"img.dtype: {img.dtype}",shape_mask) # torch.float16 torch.Size([1, 3072, 33, 44, 44])
         ref_latents,_ = self.ref_in(ref_latents)
         ref_latents_first,_ = self.img_in(ref_latents_first)
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
         elif self.text_projection == "single_refiner":
             # [b, l, h]
-            print(f"txt.dtype: {txt.dtype}")
-            print(f"text_mask.dtype: {text_mask.dtype}")
-            if text_mask is not None:
-                print(f"text_mask.dtype: {text_mask.dtype}")
+            #print(f"txt.dtype: {txt.dtype}") # fp16
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
-        img = self.before_proj(ref_latents) + img
+        img = self.before_proj(ref_latents.float()) + img #ref_latents need float32
 
         if CPU_OFFLOAD: torch.cuda.empty_cache()
 

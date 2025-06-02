@@ -47,10 +47,10 @@ class HY_Avatar_Loader:
         return {
             "required": {
                 "transformer": (["none"] + [i for i in folder_paths.get_filename_list("HunyuanAvatar") if i.endswith(".pt")],),
-                "video_size": ("INT", {"default": 512, "min": 256, "max": 2048, "step": 64}),
                 "use_fp8":  ("BOOLEAN", {"default": True},),
                 "cpu_offload":  ("BOOLEAN", {"default": True},),
-                "infer_min":  ("BOOLEAN", {"default": True},),
+               
+                
             },
         }
 
@@ -59,14 +59,14 @@ class HY_Avatar_Loader:
     FUNCTION = "loader_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def loader_main(self, transformer,video_size,use_fp8,cpu_offload,infer_min,):
+    def loader_main(self, transformer,use_fp8,cpu_offload,):
         vae_str="884-16c-hy0801"
         vae_channels = int(vae_str.split("-")[1][:-1])
         load_key=["module", "ema"]
         args_dict={
             "ckpt": "",
             "model":"HYVideo-T/2",
-            "video_size": video_size,
+            "video_size": 512,
             "load_key":load_key[0],
             "sample_n_frames": 129,#"How many frames to sample from a video. if using 3d vae, the number should be 4n+1"
             "seed": 128,
@@ -84,7 +84,7 @@ class HY_Avatar_Loader:
             "save_path": folder_paths.get_output_directory(),
             "use_fp8": use_fp8,
             "cpu_offload": cpu_offload,
-            "infer_min": infer_min,
+            "infer_min": True,
             "prompt_template_video": "default",
             "precision": "fp16",#bf16
             "reproduce": True,
@@ -131,7 +131,8 @@ class HY_Avatar_Loader:
         return (hunyuan_video_sampler,args,)
 
 
-class HY_Avatar_PreData:
+
+class HY_Avatar_EncoderLoader:
     def __init__(self):
         pass
 
@@ -139,31 +140,16 @@ class HY_Avatar_PreData:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "audio": ("AUDIO",),
-                "image": ("IMAGE",),
                 "args": ("HY_AVATAR_MODEL_ARGS",),
-                "fps": ("FLOAT", {"default": 25.0, "min": 8.0, "max": 100.0, "step": 1.0}),
-                "prompt":("STRING", {"multiline": True,"default": "A person sits cross-legged by a campfire in a forested area."}),
-                "negative_prompt":("STRING", {"multiline": True,"default": "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"}),
+            },
+        }
 
-            }}
-
-    RETURN_TYPES = ("AVATAR_PREDATA",)
-    RETURN_NAMES = ("data_dict", )
-    FUNCTION = "sampler_main"
+    RETURN_TYPES = ("MODEL_HY_AVATAR_text_encoder","MODEL_HY_AVATAR_text_encoder_2","HY_AVATAR_MODEL_ARGS")
+    RETURN_NAMES = ("text_encoder","text_encoder_2","args")
+    FUNCTION = "loader_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, audio, image,args,fps,prompt,negative_prompt):
-        # save audio to wav file
-        audio_file_prefix = ''.join(random.choice("0123456789") for _ in range(6))
-        audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
-        buff = io.BytesIO()
-        torchaudio.save(buff, audio["waveform"].squeeze(0), audio["sample_rate"], format="FLAC")
-        with open(audio_path, 'wb') as f:
-            f.write(buff.getbuffer())
-
-        wav2vec, feature_extractor, align_instance = audio_image_load(Hunyuan_Avatar_Weigths_Path, device)
-        # Text encoder
+    def loader_main(self, args,):
         if args.prompt_template_video is not None:
             crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get("crop_start", 0)
         else:
@@ -195,7 +181,53 @@ class HY_Avatar_PreData:
                                          logger=logger,
                                          device='cpu' if args.cpu_offload else device , # if not args.use_cpu_offload else 'cpu'
                                          )
+        return (text_encoder,text_encoder_2,args)   
 
+class HY_Avatar_PreData:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "image": ("IMAGE",),""
+                "text_encoder": ("MODEL_HY_AVATAR_text_encoder",),
+                "text_encoder_2": ("MODEL_HY_AVATAR_text_encoder_2",),
+                "args": ("HY_AVATAR_MODEL_ARGS",),
+                "fps": ("FLOAT", {"default": 25.0, "min": 8.0, "max": 100.0, "step": 1.0}),
+                "video_size": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 16}),
+                "image_size" : ("INT", {"default": 704, "min": 128, "max": 1216, "step": 16}),
+                "video_length": ("INT", {"default": 128, "min": 128, "max": 2048, "step": 4}),
+                "prompt":("STRING", {"multiline": True,"default": "A person sits cross-legged by a campfire in a forested area."}),
+                "negative_prompt":("STRING", {"multiline": True,"default": "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"}),
+                "infer_min":  ("BOOLEAN", {"default": True},),
+
+            }}
+
+    RETURN_TYPES = ("AVATAR_PREDATA",)
+    RETURN_NAMES = ("data_dict", )
+    FUNCTION = "sampler_main"
+    CATEGORY = "HunyuanAvatar_Sm"
+
+    def sampler_main(self, audio, image,text_encoder,text_encoder_2,args,fps,video_size,image_size,video_length,prompt,negative_prompt,infer_min,):
+        # save audio to wav file
+        audio_file_prefix = ''.join(random.choice("0123456789") for _ in range(6))
+        audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
+        buff = io.BytesIO()
+        torchaudio.save(buff, audio["waveform"].squeeze(0), audio["sample_rate"], format="FLAC")
+        with open(audio_path, 'wb') as f:
+            f.write(buff.getbuffer())
+
+        wav2vec, feature_extractor, align_instance = audio_image_load(Hunyuan_Avatar_Weigths_Path, device)
+        args.video_size=video_size
+        if video_length>128:
+            infer_min=False
+        args.infer_min=infer_min
+        args.image_size=image_size
+        args.sample_n_frames=video_length+1
+   
         kwargs = {
                 "text_encoder": text_encoder, 
                 "text_encoder_2": text_encoder_2, 
@@ -221,7 +253,8 @@ class HY_Avatar_PreData:
 
             audio_prompts = [encode_audio(wav2vec, audio_feat.to(dtype=wav2vec.dtype), fps, num_frames=batch["audio_len"][0]) for audio_feat in audio_prompts]
             audio_prompts = torch.cat(audio_prompts, dim=0).to(device=device, dtype=weight_dtype)
-            if audio_prompts.shape[1] <= 129:
+            print(audio_prompts.shape) #torch.Size([1, 272, 10, 5, 384]) #batch["audio_len"] 272
+            if audio_prompts.shape[1] <= 129: #补帧足129
                 audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1,129-audio_prompts.shape[1], 1, 1, 1)], dim=1)
             else:
                 audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1, 5, 1, 1, 1)], dim=1)
@@ -301,22 +334,24 @@ class HY_Avatar_Sampler:
                 "model": ("MODEL_HY_AVATAR_MODEL",),
                 "data_dict": ("AVATAR_PREDATA",),  # {}
                 "seed": ("INT", {"default": 0, "min": 0, "max": MAX_SEED}),
-                "steps": ("INT", {"default": 25, "min": 10, "max": 1024, "step": 1}),
+                "steps": ("INT", {"default": 25, "min": 3, "max": 1024, "step": 1}),
                 "cfg_scale": ("FLOAT", {"default": 7.5, "min": 1, "max": 20, "step": 0.1}),
+                 "vae_tiling":  ("BOOLEAN", {"default": True},),
             }}
 
     RETURN_TYPES = ("IMAGE", "FLOAT")
-    RETURN_NAMES = ("image", "fps")
+    RETURN_NAMES = ("images", "fps")
     FUNCTION = "sampler_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, model, data_dict, seed,steps,cfg_scale):
+    def sampler_main(self, model, data_dict, seed,steps,cfg_scale,vae_tiling):
 
         print("***********Start infer  ***********")
         args=data_dict.get("args")
         args.seed = seed
         args.infer_steps = steps
         args.cfg_scale = cfg_scale
+        args.vae_tiling = vae_tiling
         iamge = hunyuan_avatar_main(args,model,data_dict.get("json_loader"),data_dict.get("emb_data"),args.infer_min)
         gc.collect()
         torch.cuda.empty_cache()
@@ -325,12 +360,14 @@ class HY_Avatar_Sampler:
 
 NODE_CLASS_MAPPINGS = {
     "HY_Avatar_Loader": HY_Avatar_Loader,
+    "HY_Avatar_EncoderLoader": HY_Avatar_EncoderLoader,
     "HY_Avatar_PreData": HY_Avatar_PreData,
     "HY_Avatar_Sampler": HY_Avatar_Sampler,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "HY_Avatar_Loader": "HY_Avatar_Loader",
+    "HY_Avatar_EncoderLoader": "HY_Avatar_EncoderLoader",
     "HY_Avatar_PreData": "HY_Avatar_PreData",
     "HY_Avatar_Sampler": "HY_Avatar_Sampler",
 }

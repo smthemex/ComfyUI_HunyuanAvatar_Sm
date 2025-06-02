@@ -1045,6 +1045,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         )
 
         video_length = audio_prompts.shape[1] // 4 * 4 + 1
+        print(f"video_length: {video_length}")
         if "884" in vae_ver:
             video_length = (video_length - 1) // 4 + 1
         elif "888" in vae_ver:
@@ -1319,7 +1320,8 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
                         callback(step_idx, t, latents)
 
         latents = latents_all.float()[:, :, :video_length] 
-        if cpu_offload: torch.cuda.empty_cache()
+        if cpu_offload: 
+            torch.cuda.empty_cache()
 
         if not output_type == "latent":
             expand_temporal_dim = False
@@ -1341,26 +1343,63 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
             with torch.autocast(device_type="cuda", dtype=vae_dtype, enabled=vae_autocast_enabled):
                 if enable_tiling:
                     self.vae.enable_tiling()
-                    if cpu_offload:
-                        self.vae.post_quant_conv.to('cuda')
-                        self.vae.decoder.to('cuda')
-                    image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                    try:
+                        self.maybe_free_model_hooks() #move transfomer to cpu
+                        if cpu_offload:
+                            self.vae.post_quant_conv.to('cuda')
+                            self.vae.decoder.to('cuda')
+                        image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                        decode_done=True
+                    except: #OOM 则改成 CPU解码，很慢
+                        print('OOM, use CPU to decode')
+                        self.maybe_free_model_hooks() #move transfomer to cpu
+                        self.vae.post_quant_conv.to('cpu')
+                        self.vae.decoder.to('cpu')
+
+                        if  cpu_offload:
+                            latents= latents.to(device=torch.device("cpu"),dtype=vae_dtype)
+                        try:
+                            print('use CPU to decode disable tiling')
+                            self.vae.disable_tiling()
+                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                            decode_done=True
+                        except:
+                            print('use CPU to decode enable tiling')
+                            self.vae.enable_tiling()
+                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]    
+                            decode_done=False
                     self.vae.disable_tiling()
-                    if cpu_offload:
+                    if cpu_offload and decode_done:
                         self.vae.post_quant_conv.to('cpu')
                         self.vae.decoder.to('cpu')
                         torch.cuda.empty_cache()
                 else:
-                    image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                    if cpu_offload:
+                        try:
+                            self.maybe_free_model_hooks() #move transfomer to cpu
+                            self.vae.post_quant_conv.to('cuda')
+                            self.vae.decoder.to('cuda')
+                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                        except:
+                            latents= latents.to(device=torch.device("cpu"),dtype=vae_dtype)
+                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                    else:
+                        image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
             if image is None:
                 return (None, )
 
             if expand_temporal_dim or image.shape[2] == 1:
                 image = image.squeeze(2)
 
-        image = (image / 2 + 0.5).clamp(0, 1)
-        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
-        image = image.cpu().float()
+            image = (image / 2 + 0.5).clamp(0, 1)
+            # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
+            image = image.cpu().float()
+        else:
+            if hasattr(self.vae.config, 'shift_factor') and self.vae.config.shift_factor:
+                image = latents / self.vae.config.scaling_factor + self.vae.config.shift_factor
+            else:
+                image = latents / self.vae.config.scaling_factor
+       
 
         # Offload all models
         self.maybe_free_model_hooks()
