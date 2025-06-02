@@ -11,8 +11,8 @@ from transformers import (
 from transformers.utils import ModelOutput
 from ..constants import TEXT_ENCODER_PATH, TOKENIZER_PATH, PRECISION_TO_TYPE
 
-CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", 0))
-print(f'text_encoder: cpu_offload={CPU_OFFLOAD}')
+CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", True))
+#print(f'text_encoder: cpu_offload={CPU_OFFLOAD}')
 
 def use_default(value, default):
     return value if value is not None else default
