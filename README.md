@@ -3,8 +3,7 @@
 
 TIPS:
 -----
-* 因为测试的是cpu卸载方案，所以很大几率会报错.目前主要处理数据混杂（音频、图片、text的emb，多种模型）因为cpu卸载带来的各种不兼容，计划能跑才上云。
-* 测试环境:VRam12G，Ram64G,transformer必须指定版本，否则会报错，腾讯都没法解决，所以老实匹配。
+* 因为没用大显存测试，目前fp8 ，超低分辨率（小于256*256）出黑图，猜测是face emb尺寸太小导致的，也有可能是适配fp8量化，修改了许多block的代码导致的。
 
 
 1.Installation  
@@ -45,7 +44,6 @@ pip install -r requirements.txt
 4 example
 ----
 ![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example.png)
-
 
 ## 🔗 BibTeX
 
