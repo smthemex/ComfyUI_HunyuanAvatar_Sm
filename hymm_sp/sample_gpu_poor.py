@@ -196,38 +196,39 @@ def hunyuan_avatar_main(args,hunyuan_video_sampler,json_loader,emb_data,infer_mi
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
 
-
+    frame_list=[]
     for  batch,emb_dict in zip(json_loader,emb_data):
 
-        fps = batch["fps"]
-        videoid = batch['videoid'][0]
-        audio_path = str(batch["audio_path"][0])
-        #save_path = args.save_path 
-        output_path = f"{save_path}/{videoid}.mp4"
-        output_audio_path = f"{save_path}/{videoid}_audio.mp4"
+        # fps = batch["fps"]
+        # videoid = batch['videoid'][0]
+        # audio_path = str(batch["audio_path"][0])
+        # #save_path = args.save_path 
+        # output_path = f"{save_path}/{videoid}.mp4"
+        # output_audio_path = f"{save_path}/{videoid}_audio.mp4"
 
         if infer_min:
             batch["audio_len"][0] = 129
             
         samples = hunyuan_video_sampler.predict(args, batch,emb_dict)
-        
-        sample = samples['samples'][0].unsqueeze(0)                    # denoised latent, (bs, 16, t//4, h//8, w//8)
+       
+        sample = samples['samples'][0].unsqueeze(0)  # denoised latent, (bs, 16, t//4, h//8, w//8)
         sample = sample[:, :, :batch["audio_len"][0]]
         
         video = rearrange(sample[0], "c f h w -> f h w c")
         video = (video * 255.).data.cpu().numpy().astype(np.uint8)  # （f h w c)
-        
+        print("原始 video 形状:", video.shape)  # 应为 (frames, h, w, c)
         torch.cuda.empty_cache()
 
         final_frames = []
         for frame in video:
             final_frames.append(frame)
         final_frames = np.stack(final_frames, axis=0)
-        
+        print("final_frames 形状:", final_frames.shape)  # 预期 (frames, h, w, c)
+        frame_list.append(final_frames)
         #if rank == 0: 
-        imageio.mimsave(output_path, final_frames, fps=fps.item())
-        os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
-    return final_frames
+        # imageio.mimsave(output_path, final_frames, fps=fps.item())
+        # os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
+    return frame_list[0]
 
 
 

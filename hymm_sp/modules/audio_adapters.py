@@ -109,8 +109,8 @@ class AudioProjNet2(ModelMixin):
         audio_embeds = rearrange(audio_embeds, "bz f w b c -> (bz f) w b c")
         batch_size, window_size, blocks, channels = audio_embeds.shape
         audio_embeds = audio_embeds.view(batch_size, window_size * blocks * channels)
-        print(f"audio_embeds.dtype: {audio_embeds.dtype}") #half16
-        print(f"self.proj1.weight.dtype: {self.proj1.weight.dtype}") #float32
+        #print(f"audio_embeds.dtype: {audio_embeds.dtype}") #half16
+        #print(f"self.proj1.weight.dtype: {self.proj1.weight.dtype}") #float32
         audio_embeds = audio_embeds.to(dtype=self.proj1.weight.dtype) #NEED check if this is needed
         audio_embeds = torch.relu(self.proj1(audio_embeds))
         audio_embeds = torch.relu(self.proj2(audio_embeds))

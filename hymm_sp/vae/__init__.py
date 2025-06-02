@@ -15,8 +15,8 @@ def load_vae(vae_type,
     vae_compress_spec, _, _ = vae_type.split("-")
     length = len(vae_compress_spec)
     if length == 3:
-        if logger is not None:
-            logger.info(f"Loading 3D VAE model ({vae_type}) from: {vae_path}")
+        # if logger is not None:
+        #     logger.info(f"Loading 3D VAE model ({vae_type}) from: {vae_path}")
         config = AutoencoderKLCausal3D.load_config(vae_path)
         if sample_size:
             vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)

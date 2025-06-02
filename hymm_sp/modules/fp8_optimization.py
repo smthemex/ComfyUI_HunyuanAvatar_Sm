@@ -66,12 +66,15 @@ def fp8_linear_forward(cls, original_dtype, input):
         linear_weight = cls.weight
     #####
 
-    if weight_dtype == torch.float8_e4m3fn and cls.weight.sum() != 0:
+    #if weight_dtype == torch.float8_e4m3fn and cls.weight.sum() != 0: #移除sum()检查 会报错
+    if weight_dtype == torch.float8_e4m3fn:
         if True or len(input.shape) == 3:
             cls_dequant = fp8_activation_dequant(linear_weight, scale, original_dtype)
             if cls.bias != None:
+                input = input.to(cls_dequant.dtype) ## 保证 input 和权重 dtype 一致
                 output = F.linear(input, cls_dequant, cls.bias)
             else:
+                input = input.to(cls_dequant.dtype) # 保证 input 和权重 dtype 一致
                 output = F.linear(input, cls_dequant)
             return output
         else:

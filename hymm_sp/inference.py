@@ -56,7 +56,7 @@ class Inference(object):
             logger (logging.Logger): The logger for the inference pipeline. Default is None.
         """
         # ========================================================================
-        logger.info(f"Got text-to-video model root path: {pretrained_model_path}")
+        #logger.info(f"Got text-to-video model root path: {pretrained_model_path}")
         
         # ======================== Get the args path =============================
         

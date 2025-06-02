@@ -211,7 +211,7 @@ class HunyuanVideoSampler(Inference):
                                 attention_mask=None,
                                 negative_prompt_embeds=emb_dict["negative_prompt_embeds"],
                                 negative_attention_mask=None,
-                                output_type="pil",
+                                output_type="pli",
                                 freqs_cis=(freqs_cos, freqs_sin),
                                 n_tokens=n_tokens,
                                 data_type='video',

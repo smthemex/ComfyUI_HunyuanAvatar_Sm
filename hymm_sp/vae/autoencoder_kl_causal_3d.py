@@ -16,9 +16,15 @@ def mpi_comm():
 
 from torch import distributed as dist
 def mpi_rank():
+    if not dist.is_available() or not dist.is_initialized():
+        return 0
     return dist.get_rank()
 
+# 定义一个函数，用于获取MPI世界的规模
 def mpi_world_size():
+    if not dist.is_available() or not dist.is_initialized():
+        return 1
+    # 使用dist库中的get_world_size()函数获取MPI世界的规模
     return dist.get_world_size()
 
 
@@ -102,7 +108,8 @@ try:
     from polygraphy.backend.trt import ( TrtRunner, EngineFromBytes)
     from polygraphy.backend.common import BytesFromPath
 except:
-    print("TrtRunner or EngineFromBytes is not available, you can not use trt engine")
+    pass
+    #print("TrtRunner or EngineFromBytes is not available, you can not use trt engine")
 
 @dataclass
 class DecoderOutput2(BaseOutput):
@@ -113,9 +120,9 @@ class DecoderOutput2(BaseOutput):
 MODEL_OUTPUT_PATH = os.environ.get('MODEL_OUTPUT_PATH')
 MODEL_BASE = os.environ.get('MODEL_BASE')
 
-CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", 0))
+CPU_OFFLOAD = os.environ.get("CPU_OFFLOAD", True) #windows 默认开启卸载及单卡运行
 DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
-print(f'vae: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
+#print(f'vae: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
 
 class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
@@ -446,7 +453,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
     def _decode(self, z: torch.FloatTensor, return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
         assert len(z.shape) == 5, "The input tensor should have 5 dimensions"
-
+        z = z.to(RECOMMENDED_DTYPE)
+        print(f"z.shape: {z.shape}",self.tile_latent_min_tsize) # torch.Size([1, 16, 70, 32, 32]) 16
         if self.use_temporal_tiling and z.shape[2] > self.tile_latent_min_tsize:
             return self.temporal_tiled_decode(z, return_dict=return_dict)
         
@@ -464,6 +472,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             return (dec,)
 
         return DecoderOutput(sample=dec)
+
 
     @apply_forward_hook
     def decode(
@@ -580,6 +589,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             row = []
             for j in range(0, x.shape[-1], overlap_size):
                 tile = x[:, :, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
+                tile = tile.to(RECOMMENDED_DTYPE)
                 tile = self.encoder(tile)
                 tile = self.quant_conv(tile)
                 row.append(tile)
@@ -639,7 +649,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             for i in range(0, z.shape[-2], overlap_size):
                 for j in range(0, z.shape[-1], overlap_size):
                     tile = z[:, :, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
-
+                    tile = tile.to(RECOMMENDED_DTYPE)
                     if self.use_padding and (tile.shape[-2] < self.tile_latent_min_size or tile.shape[-1] < self.tile_latent_min_size):
                         from torch.nn import functional as F
                         after_h = tile.shape[-2] * 8
@@ -760,7 +770,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
     def temporal_tiled_encode(self, x: torch.FloatTensor, return_dict: bool = True) -> AutoencoderKLOutput:
         assert not self.disable_causal_conv, "Temporal tiling is only compatible with causal convolutions."
-    
+         
         B, C, T, H, W = x.shape
         overlap_size = int(self.tile_sample_min_tsize * (1 - self.tile_overlap_factor))
         blend_extent = int(self.tile_latent_min_tsize * self.tile_overlap_factor)
@@ -770,6 +780,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         row = []
         for i in range(0, T, overlap_size):
             tile = x[:, :, i : i + self.tile_sample_min_tsize + 1, :, :]
+            tile = tile.to(RECOMMENDED_DTYPE)
             if self.use_spatial_tiling and (tile.shape[-1] > self.tile_sample_min_size or tile.shape[-2] > self.tile_sample_min_size):
                 tile = self.spatial_tiled_encode(tile, return_moments=True)
             else:
@@ -797,15 +808,16 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
     def temporal_tiled_decode(self, z: torch.FloatTensor, return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
         # Split z into overlapping tiles and decode them separately.
         assert not self.disable_causal_conv, "Temporal tiling is only supported with causal convolutions."
-    
+        print(f"z.shape temporal_tiled_decode: {z.shape}",self.tile_latent_min_tsize) #torch.Size([1, 16, 70, 32, 32]) 16
         B, C, T, H, W = z.shape
-        overlap_size = int(self.tile_latent_min_tsize * (1 - self.tile_overlap_factor))
-        blend_extent = int(self.tile_sample_min_tsize * self.tile_overlap_factor)
-        t_limit = self.tile_sample_min_tsize - blend_extent
+        overlap_size = int(self.tile_latent_min_tsize * (1 - self.tile_overlap_factor)) #16*0.75=12
+        blend_extent = int(self.tile_sample_min_tsize * self.tile_overlap_factor) #16*0.25=4
+        t_limit = self.tile_sample_min_tsize - blend_extent #16-4=12
         rank = 0 if CPU_OFFLOAD or DISABLE_SP else mpi_rank()
         row = []
         for i in range(0, T, overlap_size):
             tile = z[:, :, i : i + self.tile_latent_min_tsize + 1, :, :]
+            tile = tile.to(RECOMMENDED_DTYPE)
             if self.use_spatial_tiling and (tile.shape[-1] > self.tile_latent_min_size or tile.shape[-2] > self.tile_latent_min_size):
                 decoded = self.spatial_tiled_decode(tile, return_dict=True).sample
             else:
