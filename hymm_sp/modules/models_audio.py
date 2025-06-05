@@ -16,7 +16,7 @@ from .mlp_layers import MLP, MLPEmbedder, FinalLayer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .token_refiner import SingleTokenRefiner
 from .audio_adapters import AudioProjNet2, PerceiverAttentionCA
-
+from .config import get_config
 from .parallel_states import (
     nccl_info,
     get_cu_seqlens,
@@ -580,7 +580,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         if CPU_OFFLOAD: torch.cuda.empty_cache()
         #print(f"ref_latents.dtype: {ref_latents.dtype}",x.dtype)#torch.float32 torch.float16
-        ref_latents = ref_latents.to(dtype=torch.float16) #TODO
+        if get_config():
+            ref_latents = ref_latents.to(dtype=torch.float16) #TODO
       
         # Embed image and text.
         ref_latents_first = ref_latents[:, :, :1].clone()
@@ -596,8 +597,10 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
-        img = self.before_proj(ref_latents.float()) + img #ref_latents need float32
-
+        if get_config():
+            img = self.before_proj(ref_latents.float()) + img #ref_latents need float32
+        else:
+            img = self.before_proj(ref_latents) + img
         if CPU_OFFLOAD: torch.cuda.empty_cache()
 
         ref_length = ref_latents_first.shape[-2]          # [b s c]
