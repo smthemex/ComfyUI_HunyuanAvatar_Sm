@@ -3,7 +3,7 @@
 
 TIPS:
 -----
-* 因为没用大显存测试，目前fp8 ，超低分辨率（小于256*256）出黑图，猜测是face emb尺寸太小导致的，也有可能是适配fp8量化，修改了许多block的代码导致的。
+* fp8模型出黑图一直没修正，只能修改代码，先适配回fp16模型加载，欢迎测试反馈。
 
 
 1.Installation  
@@ -40,6 +40,7 @@ pip install -r requirements.txt
 |         ├── ... 所有json文件以及model.safetensors模型
 |   ├── mp_rank_00_model_states_fp8_map.pt #104K
 |   ├── mp_rank_00_model_states_fp8.pt.pt #24.9G
+|   ├──mp_rank_00_model_states.pt
 ```
 4 example
 ----
