@@ -19,7 +19,7 @@ from .hymm_sp.data_kits.audio_preprocessor import encode_audio, get_facemask
 from .hymm_sp.text_encoder import TextEncoder
 from .hymm_sp.constants import PROMPT_TEMPLATE
 from .hymm_sp.data_kits.audio_dataset import VideoAudioTextLoaderVal
-
+from .hymm_sp.modules.config import update_config
 import folder_paths
 
 MAX_SEED = np.iinfo(np.int32).max
@@ -63,6 +63,8 @@ class HY_Avatar_Loader:
         vae_str="884-16c-hy0801"
         vae_channels = int(vae_str.split("-")[1][:-1])
         load_key=["module", "ema"]
+        if use_fp8:
+            update_config({'use_fp8': True})
         args_dict={
             "ckpt": "",
             "model":"HYVideo-T/2",
@@ -196,12 +198,13 @@ class HY_Avatar_PreData:
                 "text_encoder": ("MODEL_HY_AVATAR_text_encoder",),
                 "text_encoder_2": ("MODEL_HY_AVATAR_text_encoder_2",),
                 "args": ("HY_AVATAR_MODEL_ARGS",),
-                "fps": ("FLOAT", {"default": 25.0, "min": 8.0, "max": 100.0, "step": 1.0}),
+                "fps": ([25.0, 12.5],),
                 "video_size": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 16}),
                 "image_size" : ("INT", {"default": 704, "min": 128, "max": 1216, "step": 16}),
                 "video_length": ("INT", {"default": 128, "min": 128, "max": 2048, "step": 4}),
                 "prompt":("STRING", {"multiline": True,"default": "A person sits cross-legged by a campfire in a forested area."}),
                 "negative_prompt":("STRING", {"multiline": True,"default": "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"}),
+                "duration": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 100000000000.0, "step": 0.1}),
                 "infer_min":  ("BOOLEAN", {"default": True},),
 
             }}
@@ -211,12 +214,16 @@ class HY_Avatar_PreData:
     FUNCTION = "sampler_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, audio, image,text_encoder,text_encoder_2,args,fps,video_size,image_size,video_length,prompt,negative_prompt,infer_min,):
+    def sampler_main(self, audio, image,text_encoder,text_encoder_2,args,fps,video_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,):
         # save audio to wav file
         audio_file_prefix = ''.join(random.choice("0123456789") for _ in range(6))
         audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
         buff = io.BytesIO()
         torchaudio.save(buff, audio["waveform"].squeeze(0), audio["sample_rate"], format="FLAC")
+        num_frames = audio["waveform"].squeeze(0).shape[1]
+        duration_input = num_frames / audio["sample_rate"]
+        infer_duration = min(duration,duration_input)
+        print(f"Input audio duration is {duration_input} seconds, infer audio duration is: {duration} seconds.use {infer_duration} seconds to infer.")
         with open(audio_path, 'wb') as f:
             f.write(buff.getbuffer())
 
@@ -240,6 +247,7 @@ class HY_Avatar_PreData:
                 image_path=tensor_to_pil(image),
                 prompt=prompt,
                 fps=fps,
+                infer_duration=infer_duration,
                 **kwargs,
             )
 
@@ -264,7 +272,7 @@ class HY_Avatar_PreData:
             motion_pose = batch["motion_bucket_id_heads"].to(device)
             
             pixel_value_ref = batch['pixel_value_ref'].to(device)  # (b f c h w) 取值范围[0,255]
-            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0) 
+            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=1.25)  #小脸才行
 
             pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
             uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
@@ -355,7 +363,7 @@ class HY_Avatar_Sampler:
         iamge = hunyuan_avatar_main(args,model,data_dict.get("json_loader"),data_dict.get("emb_data"),args.infer_min)
         gc.collect()
         torch.cuda.empty_cache()
-        return (load_images(iamge), data_dict.get("fps"))
+        return (iamge, data_dict.get("fps"))
 
 
 NODE_CLASS_MAPPINGS = {
