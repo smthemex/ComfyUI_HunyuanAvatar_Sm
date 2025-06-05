@@ -181,7 +181,8 @@ class HunyuanVideoSampler(Inference):
         #     """
         # self.logger.info(debug_str)
         pipeline_kwargs = {
-            "cpu_offload": args.cpu_offload
+            "cpu_offload": args.cpu_offload,
+            "use_fp8": args.use_fp8,
         }
         start_time = time.time()
         samples = self.pipeline(prompt=None,                                
