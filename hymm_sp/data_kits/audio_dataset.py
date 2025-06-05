@@ -19,8 +19,8 @@ from torchvision.transforms import ToPILImage
 
 
 
-def get_audio_feature(feature_extractor, audio_path):
-    audio_input, sampling_rate = librosa.load(audio_path, sr=16000)
+def get_audio_feature(feature_extractor, audio_path,infer_duration):
+    audio_input, sampling_rate = librosa.load(audio_path, sr=16000,duration=infer_duration)
     assert sampling_rate == 16000
 
     audio_features = []
@@ -44,6 +44,7 @@ class VideoAudioTextLoaderVal(Dataset):
         audio_path: str,
         prompt: str,
         fps: float,
+        infer_duration,
         **kwargs,
     ):
         super().__init__()
@@ -59,7 +60,7 @@ class VideoAudioTextLoaderVal(Dataset):
                     "prompt": prompt, 
                     "fps": fps,
                 }]
-    
+        self.infer_duration = infer_duration
         # csv_data = pd.read_csv(meta_file)
         # for idx in range(len(csv_data)):
         #     self.meta_files.append(
@@ -126,7 +127,7 @@ class VideoAudioTextLoaderVal(Dataset):
         ref_image = np.array(ref_image)
         ref_image = torch.from_numpy(ref_image)
          
-        audio_input, audio_len = get_audio_feature(self.feature_extractor, audio_path)
+        audio_input, audio_len = get_audio_feature(self.feature_extractor, audio_path,self.infer_duration)
         audio_prompts = audio_input[0]
         
         motion_bucket_id_heads = np.array([25] * 4)
