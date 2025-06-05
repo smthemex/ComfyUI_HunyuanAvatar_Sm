@@ -912,6 +912,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         """
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
+        use_fp8=kwargs.pop("use_fp8", False)
         if callback is not None:
             deprecate(
                 "callback",
@@ -976,7 +977,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
 
  
         # ========== Encode text prompt (image prompt) ==========
-        if prompt_embeds is  None and prompt_embeds_2 is  None:
+        if prompt is not None:
             prompt_embeds, negative_prompt_embeds, prompt_mask, negative_prompt_mask = \
                 self.encode_prompt_audio_text_base(
                     prompt=prompt,
@@ -1375,16 +1376,9 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
                         torch.cuda.empty_cache()
                 else:
                     if cpu_offload:
-                        try:
-                            self.maybe_free_model_hooks() #move transfomer to cpu
-                            self.vae.post_quant_conv.to('cuda')
-                            self.vae.decoder.to('cuda')
-                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
-                        except:
-                            latents= latents.to(device=torch.device("cpu"),dtype=vae_dtype)
-                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
-                    else:
-                        image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
+                        self.vae.post_quant_conv.to('cuda')
+                        self.vae.decoder.to('cuda')
+                    image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
             if image is None:
                 return (None, )
 
