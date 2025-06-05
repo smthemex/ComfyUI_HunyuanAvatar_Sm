@@ -8,6 +8,7 @@ from .data_kits.face_align import AlignImage
 from transformers import WhisperModel
 from transformers import AutoFeatureExtractor
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+from PIL import Image
 
 def audio_image_load(base_dir, device):
 
@@ -154,7 +155,7 @@ def encode_prompt_audio_text_base(
         uncond_input = text_encoder.text2tokens(uncond_tokens, data_type=data_type)
 
         # if hasattr(text_encoder.model.config, "use_attention_mask") and text_encoder.model.config.use_attention_mask:
-        #     attention_mask = uncond_input.attention_mask.to(device)
+            #attention_mask = uncond_input.attention_mask.to(device)
         # else:
         #     attention_mask = None
         if uncond_pixel_value_llava is not None:
@@ -215,16 +216,24 @@ def hunyuan_avatar_main(args,hunyuan_video_sampler,json_loader,emb_data,infer_mi
         sample = sample[:, :, :batch["audio_len"][0]]
         
         video = rearrange(sample[0], "c f h w -> f h w c")
-        video = (video * 255.).data.cpu().numpy().astype(np.uint8)  # （f h w c)
-        print("原始 video 形状:", video.shape)  # 应为 (frames, h, w, c)
-        torch.cuda.empty_cache()
+        # video = (video * 255.).data.cpu().numpy().astype(np.uint8)  # （f h w c)
+        # print("原始 video 形状:", video.shape)  # 应为 (frames, h, w, c) #原始 video 形状: (248, 512, 704, 3)
+        # torch.cuda.empty_cache()
 
-        final_frames = []
-        for frame in video:
-            final_frames.append(frame)
-        final_frames = np.stack(final_frames, axis=0)
-        print("final_frames 形状:", final_frames.shape)  # 预期 (frames, h, w, c)
-        frame_list.append(final_frames)
+        # pil_images = []
+
+        # # 遍历每一帧
+        # for frame in video:
+        #     # 如果图像是彩色的（channels=3），确保通道顺序为 RGB
+        #     if frame.shape[2] == 3:
+        #         frame = frame[:, :, ::-1]  # 将通道顺序从 BGR 转换为 RGB
+            
+        #     # 使用 Image.fromarray 将 NumPy 数组转换为 PIL 图像
+        #     pil_image = Image.fromarray(frame)
+            
+        #     # 将 PIL 图像添加到列表中
+        #     pil_images.append(pil_image)
+        frame_list.append(video)
         #if rank == 0: 
         # imageio.mimsave(output_path, final_frames, fps=fps.item())
         # os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
