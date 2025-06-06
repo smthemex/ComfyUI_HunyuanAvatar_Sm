@@ -14,12 +14,12 @@ from einops import rearrange
 from omegaconf import OmegaConf
 
 from .hymm_sp.sample_gpu_poor import hunyuan_avatar_main,tranformer_load,audio_image_load,encode_prompt_audio_text_base
-from .node_utils import tensor_to_pil,gc_clear,load_images
+from .node_utils import tensor_to_pil,gc_clear
 from .hymm_sp.data_kits.audio_preprocessor import encode_audio, get_facemask
 from .hymm_sp.text_encoder import TextEncoder
 from .hymm_sp.constants import PROMPT_TEMPLATE
 from .hymm_sp.data_kits.audio_dataset import VideoAudioTextLoaderVal
-from .hymm_sp.modules.config import update_config
+
 import folder_paths
 
 MAX_SEED = np.iinfo(np.int32).max
@@ -63,10 +63,6 @@ class HY_Avatar_Loader:
         vae_str="884-16c-hy0801"
         vae_channels = int(vae_str.split("-")[1][:-1])
         load_key=["module", "ema"]
-        if use_fp8:
-            update_config({'use_fp8': True})
-        if  cpu_offload:
-            update_config({'cpu_offload': True})
         args_dict={
             "ckpt": "",
             "model":"HYVideo-T/2",
@@ -320,6 +316,10 @@ class HY_Avatar_PreData:
                         text_encoder=text_encoder_2,
                         # **kwargs
                     )
+            prompt_embeds=prompt_embeds.to(device,dtype=torch.float16)
+            negative_prompt_embeds=negative_prompt_embeds.to(device,dtype=torch.float16)
+            prompt_embeds_2=prompt_embeds_2.to(device,dtype=torch.float16)
+            negative_prompt_embeds_2=negative_prompt_embeds_2.to(device,dtype=torch.float16)
             batch_dict= {"audio_prompts":audio_prompts,"uncond_audio_prompts":uncond_audio_prompts,"motion_exp":motion_exp,"motion_pose":motion_pose,"face_masks":face_masks,
                          "prompt_embeds":prompt_embeds,"negative_prompt_embeds":negative_prompt_embeds,"prompt_mask":prompt_mask,"negative_prompt_mask":negative_prompt_mask,"prompt_embeds_2":prompt_embeds_2,
                          "negative_prompt_embeds_2":negative_prompt_embeds_2,"prompt_mask_2":prompt_mask_2,"negative_prompt_mask_2":negative_prompt_mask_2,
