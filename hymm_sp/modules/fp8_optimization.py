@@ -3,7 +3,7 @@ import os
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from .config import get_config
+
 
 def get_fp_maxval(bits=8, mantissa_bit=3, sign_bits=1):
     _bits = torch.tensor(bits)
@@ -77,12 +77,12 @@ def fp8_linear_forward(cls, original_dtype, input):
         if True or len(input.shape) == 3:
             cls_dequant = fp8_activation_dequant(linear_weight, scale, original_dtype)
             if cls.bias != None:
-                if get_config()[1]:
+                if cls.bias.dtype != cls_dequant.dtype:
                     cls.bias = cls.bias.to(cls_dequant.dtype)
                 input = input.to(cls_dequant.dtype) ## 保证 input 和权重 dtype 一致
                 output = F.linear(input, cls_dequant, cls.bias)
             else:
-                if get_config()[1]:
+                if cls.bias.dtype != cls_dequant.dtype:
                     input = input.to(cls_dequant.dtype) # 保证 input 和权重 dtype 一致
                 output = F.linear(input, cls_dequant)
             return output
