@@ -144,7 +144,9 @@ class HunyuanVideoSampler(Inference):
             if args.cpu_offload:
                 self.vae.to('cpu')
                 torch.cuda.empty_cache()
-                
+
+        #print(ref_latents.dtype)  #float32
+        ref_latents= ref_latents.to(dtype=self.vae.dtype) #VAE出来的latents是float32的  ,但是后续code都需要float16   
         face_masks = torch.nn.functional.interpolate(emb_dict["face_masks"].float().squeeze(2), 
                                                 (ref_latents.shape[-2], 
                                                 ref_latents.shape[-1]), 
