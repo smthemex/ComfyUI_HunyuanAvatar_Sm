@@ -1,4 +1,5 @@
 import torch
+import os
 from pathlib import Path
 from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
 from ..constants import VAE_PATH, PRECISION_TO_TYPE
@@ -17,6 +18,18 @@ def load_vae(vae_type,
     if length == 3:
         # if logger is not None:
         #     logger.info(f"Loading 3D VAE model ({vae_type}) from: {vae_path}")
+
+        import json
+        with open(os.path.join(vae_path, "config.json"), "r", encoding="utf-8") as reader:
+            text = reader.read()
+        vae_config= json.loads(text)
+        # reduce time window used by the VAE for temporal splitting (former time windows is too large for 24 GB) 
+        if vae_config["sample_tsize"] == 64:
+            vae_config["sample_tsize"] = 32 
+        with open(os.path.join(vae_path, "config.json"), "w", encoding="utf-8") as writer:
+            writer.write(json.dumps(vae_config))
+
+
         config = AutoencoderKLCausal3D.load_config(vae_path)
         if sample_size:
             vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)
