@@ -45,7 +45,7 @@ from .parallel_states import (
     all_gather,
     all_to_all_4D,
 )
-from .config import get_config
+
 
 class AudioProjNet2(ModelMixin):
     """Audio Projection Model
@@ -110,10 +110,7 @@ class AudioProjNet2(ModelMixin):
         audio_embeds = rearrange(audio_embeds, "bz f w b c -> (bz f) w b c")
         batch_size, window_size, blocks, channels = audio_embeds.shape
         audio_embeds = audio_embeds.view(batch_size, window_size * blocks * channels)
-        #print(f"audio_embeds.dtype: {audio_embeds.dtype}") #half16
-        #print(f"self.proj1.weight.dtype: {self.proj1.weight.dtype}") #float32
-        if get_config():
-            audio_embeds = audio_embeds.to(dtype=self.proj1.weight.dtype) #NEED check if this is needed
+
         audio_embeds = torch.relu(self.proj1(audio_embeds))
         audio_embeds = torch.relu(self.proj2(audio_embeds))
 
@@ -167,10 +164,12 @@ class PerceiverAttentionCA(nn.Module):
             latent (torch.Tensor): latent features
                 shape (b, t, hw, D)
         """
+        x = x.to(dtype=torch.float16) # 
+        latents = latents.to(dtype=torch.float16)#
         x = self.norm1(x)
         latents = self.norm2(latents)
-        # print("latents shape: ", latents.shape)
-        # print("x shape: ", x.shape)
+      
+        x = x.to(dtype=torch.float16) # todo
         q = self.to_q(latents)
         k, v = self.to_kv(x).chunk(2, dim=-1)
 
