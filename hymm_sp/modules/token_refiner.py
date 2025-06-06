@@ -194,7 +194,7 @@ class SingleTokenRefiner(nn.Module):
         t: torch.LongTensor,
         mask: Optional[torch.LongTensor] = None,
     ):
-        if get_config():
+        if get_config()[1]:
             timestep_aware_representations = self.t_embedder(t).to(dtype=x.dtype) #  t float32须转化fp16,c混合精度可能报错 
             #print(x.dtype) #输入的bf16 float32 和int64的三种数据类型, self.c_embedder,self.input_embedder已是fp16
         else:
@@ -206,7 +206,7 @@ class SingleTokenRefiner(nn.Module):
             context_aware_representations = (
                 (x * mask_float).sum(dim=1) / mask_float.sum(dim=1)
             )
-        if get_config():
+        if get_config()[1]:
             context_aware_representations=  context_aware_representations.to(dtype=x.dtype) # fp8模式下须转化fp16,不然self.c_embedder混合精度报错 
         context_aware_representations = self.c_embedder(context_aware_representations)
         c = timestep_aware_representations + context_aware_representations
