@@ -2,7 +2,7 @@ import os
 import numpy as np
 import torch
 from einops import rearrange
-# import imageio
+#import imageio
 from .sample_inference_audio import HunyuanVideoSampler
 from .data_kits.face_align import AlignImage
 from transformers import WhisperModel
@@ -197,6 +197,10 @@ def hunyuan_avatar_main(args,hunyuan_video_sampler,json_loader,emb_data,infer_mi
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
 
+    # from mmgp import offload, profile_type 
+    # pipe = hunyuan_video_sampler.pipeline
+    # offload.profile(pipe, profile_no= profile_type.HighRAM_LowVRAM)    
+    
     frame_list=[]
     for  batch,emb_dict in zip(json_loader,emb_data):
 
