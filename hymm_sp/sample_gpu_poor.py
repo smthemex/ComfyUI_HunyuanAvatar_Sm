@@ -2,7 +2,7 @@ import os
 import numpy as np
 import torch
 from einops import rearrange
-import imageio
+# import imageio
 from .sample_inference_audio import HunyuanVideoSampler
 from .data_kits.face_align import AlignImage
 from transformers import WhisperModel
