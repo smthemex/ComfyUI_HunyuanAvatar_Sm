@@ -65,6 +65,8 @@ class HY_Avatar_Loader:
         load_key=["module", "ema"]
         if use_fp8:
             update_config({'use_fp8': True})
+        if  cpu_offload:
+            update_config({'cpu_offload': True})
         args_dict={
             "ckpt": "",
             "model":"HYVideo-T/2",
