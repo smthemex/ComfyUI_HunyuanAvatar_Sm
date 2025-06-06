@@ -17,3 +17,4 @@ decord
 librosa
 #scikit-video
 ffmpeg
+flash_attn
