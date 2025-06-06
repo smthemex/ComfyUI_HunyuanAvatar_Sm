@@ -26,7 +26,7 @@ from .parallel_states import (
 )
 
 #CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", 0))
-CPU_OFFLOAD = os.environ.get("CPU_OFFLOAD", True)
+CPU_OFFLOAD = get_config()[1]
 DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
 #print(f'models: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
@@ -580,7 +580,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         if CPU_OFFLOAD: torch.cuda.empty_cache()
         #print(f"ref_latents.dtype: {ref_latents.dtype}",x.dtype)#torch.float32 torch.float16
-        if get_config():
+        if CPU_OFFLOAD:
             ref_latents = ref_latents.to(dtype=torch.float16) #TODO
       
         # Embed image and text.
@@ -597,7 +597,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
-        if get_config():
+        if CPU_OFFLOAD:
             img = self.before_proj(ref_latents.float()) + img #ref_latents need float32
         else:
             img = self.before_proj(ref_latents) + img
