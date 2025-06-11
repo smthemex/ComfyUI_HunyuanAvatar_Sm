@@ -12,9 +12,9 @@ import torchaudio
 from loguru import logger
 from einops import rearrange
 from omegaconf import OmegaConf
-
+from PIL import Image
 from .hymm_sp.sample_gpu_poor import hunyuan_avatar_main,tranformer_load,audio_image_load,encode_prompt_audio_text_base
-from .node_utils import tensor_to_pil,gc_clear
+from .node_utils import tensor2pil_upscale,gc_clear
 from .hymm_sp.data_kits.audio_preprocessor import encode_audio, get_facemask
 from .hymm_sp.text_encoder import TextEncoder
 from .hymm_sp.constants import PROMPT_TEMPLATE
@@ -75,10 +75,10 @@ class HY_Avatar_Loader:
             "ip_cfg_scale": 0,
             "infer_steps": 50,
             "use_deepcache": 1,
-            "flow_shift_eval_video": 5.0,
+            "flow_shift_eval_video": None,
             "use_linear_quadratic_schedule": True,
             "use_attention_mask": True,
-            "linear_schedule_end": 25.0,
+            "linear_schedule_end": 25,
             "flow_solver": "euler",
             "flow_reverse": True,
             "save_path": folder_paths.get_output_directory(),
@@ -109,7 +109,7 @@ class HY_Avatar_Loader:
             "text_encoder_infer_mode": "encoder",
             "prompt_template_video": "li-dit-encode-video",
             "hidden_state_skip_layer": 2,
-            "apply_final_norm": False, # NEED CHECK
+            "apply_final_norm": True, # NEED CHECK
             "text_encoder_2": "clipL",
             "text_encoder_precision_2": "fp16",
             "text_states_dim_2": 768,
@@ -197,13 +197,16 @@ class HY_Avatar_PreData:
                 "text_encoder_2": ("MODEL_HY_AVATAR_text_encoder_2",),
                 "args": ("HY_AVATAR_MODEL_ARGS",),
                 "fps": ([25.0, 12.5],),
-                "video_size": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 16}),
-                "image_size" : ("INT", {"default": 704, "min": 128, "max": 1216, "step": 16}),
+                "width": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
+                "height": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
+                "video_size": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
+                "image_size" : ("INT", {"default": 704, "min": 128, "max": 1216, "step": 64}),
                 "video_length": ("INT", {"default": 128, "min": 128, "max": 2048, "step": 4}),
                 "prompt":("STRING", {"multiline": True,"default": "A person sits cross-legged by a campfire in a forested area."}),
                 "negative_prompt":("STRING", {"multiline": True,"default": "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"}),
                 "duration": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 100000000000.0, "step": 0.1}),
                 "infer_min":  ("BOOLEAN", {"default": True},),
+                "object_name": ("STRING", {"multiline": False,"default": "girl"}),
 
             }}
 
@@ -212,7 +215,7 @@ class HY_Avatar_PreData:
     FUNCTION = "sampler_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, audio, image,text_encoder,text_encoder_2,args,fps,video_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,):
+    def sampler_main(self, audio, image,text_encoder,text_encoder_2,args,fps,width,height,video_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,object_name):
         # save audio to wav file
         audio_file_prefix = ''.join(random.choice("0123456789") for _ in range(6))
         audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
@@ -242,7 +245,7 @@ class HY_Avatar_PreData:
                 image_size=args.image_size,
                 #meta_file=args.input, 
                 audio_path=audio_path,
-                image_path=tensor_to_pil(image),
+                image_path=tensor2pil_upscale(image,width,height),
                 prompt=prompt,
                 fps=fps,
                 infer_duration=infer_duration,
@@ -271,9 +274,29 @@ class HY_Avatar_PreData:
             
             pixel_value_ref = batch['pixel_value_ref'].to(device)  # (b f c h w) 取值范围[0,255]
            
-            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0)  #小脸才行
-    
-            print(pixel_value_ref.shape,face_masks.shape)
+            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0)  #小脸才行 # (b c f h w)
+
+            print(pixel_value_ref.shape,face_masks.shape) #ttorch.Size([1, 1, 3, 384, 384]) torch.Size([1, 1, 1, 384, 384])
+            # pixel_value_ref_=pixel_value_ref.clone().squeeze(0).squeeze(0)
+            # img_np = pixel_value_ref_.permute(1, 2, 0).cpu().numpy()
+            # if img_np.max() <= 1.0:
+            #     img_np = (img_np * 255).astype(np.uint8)
+            # else:
+            #     img_np = img_np.astype(np.uint8)
+            # Image.fromarray(img_np).save("123.png")
+
+            # img_tensor = face_masks.clone().squeeze(0).squeeze(0).squeeze(0)
+            # img_np = img_tensor.cpu().numpy()
+            # if img_np.max() > 1.0 or img_np.min() < 0:
+            #     img_np = (img_np - img_np.min()) / (img_np.max() - img_np.min())
+            #     img_np = (img_np * 255).astype(np.uint8)
+            # else:
+            #     img_np = (img_np * 255).astype(np.uint8)
+            # Image.fromarray(img_np, mode='L').save("1234.png")
+            
+
+
+
             pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
             uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
             pixel_value_ref = pixel_value_ref / 127.5 - 1.             
@@ -300,7 +323,7 @@ class HY_Avatar_PreData:
                     clip_skip=None,#TODO
                     text_encoder=text_encoder,
                     data_type="video", 
-                    name=None,
+                    name=object_name,
                     # **kwargs
                 )
             prompt_embeds_2, negative_prompt_embeds_2, prompt_mask_2, negative_prompt_mask_2 = encode_prompt_audio_text_base(
