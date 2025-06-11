@@ -2,7 +2,7 @@ import os
 import numpy as np
 import torch
 from einops import rearrange
-#import imageio
+# import imageio
 from .sample_inference_audio import HunyuanVideoSampler
 from .data_kits.face_align import AlignImage
 from transformers import WhisperModel
@@ -48,6 +48,7 @@ def encode_prompt_audio_text_base(
     clip_skip = None,
     text_encoder = None,
     data_type = "image",
+    name = "person"
 ):
     # if text_encoder is None:
     #     text_encoder = self.text_encoder
@@ -76,7 +77,8 @@ def encode_prompt_audio_text_base(
         # textual inversion: process multi-vector tokens if necessary
         # if isinstance(self, TextualInversionLoaderMixin):
         #     prompt = self.maybe_convert_prompt(prompt, text_encoder.tokenizer)
-        text_inputs = text_encoder.text2tokens(prompt, data_type=data_type) # data_type: video, text_inputs: {'input_ids', 'attention_mask'}
+        text_inputs = text_encoder.text2tokens(prompt, data_type=data_type,name=name) # data_type: video, text_inputs: {'input_ids', 'attention_mask'}
+        #text_inputs = text_encoder.text2tokens(prompt, data_type=data_type) # data_type: video, text_inputs: {'input_ids', 'attention_mask'}
         
         text_keys = ['input_ids', 'attention_mask']
         
@@ -152,7 +154,8 @@ def encode_prompt_audio_text_base(
         # if isinstance(self, TextualInversionLoaderMixin):
         #     uncond_tokens = self.maybe_convert_prompt(uncond_tokens, text_encoder.tokenizer)            
         # max_length = prompt_embeds.shape[1]
-        uncond_input = text_encoder.text2tokens(uncond_tokens, data_type=data_type)
+        uncond_input = text_encoder.text2tokens(uncond_tokens, data_type=data_type,name=name)
+        #uncond_input = text_encoder.text2tokens(uncond_tokens, data_type=data_type)
 
         # if hasattr(text_encoder.model.config, "use_attention_mask") and text_encoder.model.config.use_attention_mask:
             #attention_mask = uncond_input.attention_mask.to(device)
