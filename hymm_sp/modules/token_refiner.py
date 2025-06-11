@@ -161,6 +161,7 @@ class SingleTokenRefiner(nn.Module):
         qk_norm: bool = False,
         qk_norm_type: str = "layer",
         qkv_bias: bool = True,
+        cpu_offload: bool = False,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
     ):
@@ -168,7 +169,7 @@ class SingleTokenRefiner(nn.Module):
         super().__init__()
         
         self.input_embedder = nn.Linear(in_channels, hidden_size, bias=True, **factory_kwargs)
-
+        self.cpu_offload = cpu_offload
         act_layer = get_activation_layer(act_type)
         # Build timestep embedding layer
         self.t_embedder = TimestepEmbedder(hidden_size, act_layer, **factory_kwargs)
@@ -194,12 +195,12 @@ class SingleTokenRefiner(nn.Module):
         t: torch.LongTensor,
         mask: Optional[torch.LongTensor] = None,
     ):
-        cpu_offload = False
-        if cpu_offload:
-            timestep_aware_representations = self.t_embedder(t).to(dtype=x.dtype) #  t float32须转化fp16,c混合精度可能报错 
-            #print(x.dtype) #输入的bf16 float32 和int64的三种数据类型, self.c_embedder,self.input_embedder已是fp16
-        else:
-            timestep_aware_representations = self.t_embedder(t)
+        
+        # if  self.cpu_offload:
+        #     timestep_aware_representations = self.t_embedder(t).to(dtype=x.dtype) #  t float32须转化fp16,c混合精度可能报错 
+        #     #print(x.dtype) #输入的bf16 float32 和int64的三种数据类型, self.c_embedder,self.input_embedder已是fp16
+        # else:
+        timestep_aware_representations = self.t_embedder(t)
         if mask is None:
             context_aware_representations = x.mean(dim=1)
         else:
@@ -207,7 +208,7 @@ class SingleTokenRefiner(nn.Module):
             context_aware_representations = (
                 (x * mask_float).sum(dim=1) / mask_float.sum(dim=1)
             )
-        if cpu_offload:
+        if  self.cpu_offload:
             context_aware_representations=  context_aware_representations.to(dtype=x.dtype) # fp8模式下须转化fp16,不然self.c_embedder混合精度报错 
         context_aware_representations = self.c_embedder(context_aware_representations)
         c = timestep_aware_representations + context_aware_representations
