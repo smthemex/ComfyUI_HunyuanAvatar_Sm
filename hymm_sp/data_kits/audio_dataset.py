@@ -90,8 +90,8 @@ class VideoAudioTextLoaderVal(Dataset):
         return len(self.meta_files)
 
     @staticmethod
-    def get_text_tokens(text_encoder, description, dtype_encode="video"):
-        text_inputs = text_encoder.text2tokens(description, data_type=dtype_encode)
+    def get_text_tokens(text_encoder, description, dtype_encode="video",name="person"):
+        text_inputs = text_encoder.text2tokens(description, data_type=dtype_encode,name=name)
         text_ids = text_inputs["input_ids"].squeeze(0)
         text_mask = text_inputs["attention_mask"].squeeze(0)
         return text_ids, text_mask
@@ -149,7 +149,7 @@ class VideoAudioTextLoaderVal(Dataset):
         
         # Encode text prompts
    
-        text_ids, text_mask = self.get_text_tokens(self.text_encoder, prompt)
+        text_ids, text_mask = self.get_text_tokens(self.text_encoder, prompt,name=None)
         text_ids_2, text_mask_2 = self.get_text_tokens(self.text_encoder_2, prompt)
         
         # Output batch
