@@ -126,7 +126,7 @@ class DoubleStreamBlock(nn.Module):
         txt_mod1_shift, txt_mod1_scale, txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate = (
             self.txt_mod(vec).chunk(6, dim=-1)
         )
-      
+       
         if self.cpu_offload: torch.cuda.empty_cache()
 
         # Prepare image for attention.
@@ -428,9 +428,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             )
         elif self.text_projection == "single_refiner":
             self.txt_in = SingleTokenRefiner(
-                self.text_states_dim, hidden_size, num_heads, depth=2, **factory_kwargs
-            )
-        else:
+                self.text_states_dim, hidden_size, num_heads, depth=2, cpu_offload=self.cpu_offload, **factory_kwargs
+            ) #add cpu_offload
+        else: 
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
 
         # time modulation
@@ -522,6 +522,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.audio_adapter_blocks = nn.ModuleList([
             PerceiverAttentionCA(dim=3072, dim_head=1024, heads=33) for _ in range(len(self.double_stream_list) + len(self.single_stream_list))
         ])
+        if self.cpu_offload:
+            self.half()
 
 
 
@@ -586,10 +588,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 vec = vec + self.guidance_in(guidance)
 
         if self.cpu_offload: torch.cuda.empty_cache()
-        #print(f"ref_latents.dtype: {ref_latents.dtype}",x.dtype)#torch.float32 torch.float16
-        print(ref_latents.dtype,ref_latents.shape) #torch.float16 torch.Size([2, 16, 33, 16, 16])
-        print(self.cpu_offload)
-        print(text_mask.dtype)
+       
+        #print(ref_latents.dtype,ref_latents.shape) #torch.float16 torch.Size([2, 16, 33, 16, 16])
+
         # Embed image and text.
         ref_latents_first = ref_latents[:, :, :1].clone()
         img, shape_mask = self.img_in(img)
@@ -605,7 +606,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
         if self.cpu_offload:
-            img = self.before_proj(ref_latents.float()) + img #ref_latents need float32 此处img被转为float32
+            img = self.before_proj(ref_latents.to(dtype=img.dtype)) + img # 此处img被转为float32,不使用float()
         else:
             img = self.before_proj(ref_latents) + img
         if self.cpu_offload: torch.cuda.empty_cache()
@@ -662,6 +663,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     
                     double_idx = self.double_stream_map[str(layer_num)]
                     #print(audio_feature_all_insert.dtype,real_img.dtype)#torch.float32 torch.float16
+                    if self.cpu_offload:
+                        audio_feature_all_insert = audio_feature_all_insert.to(dtype=torch.float16)
+                        #print(audio_feature_all_insert.dtype,real_img.dtype)#
                     real_img = self.audio_adapter_blocks[double_idx](audio_feature_all_insert, real_img).view(bsz, -1, 3072)
                     img = img + torch.cat((real_ref_img, real_img * face_mask), dim=1)
                     if get_sequence_parallel_state():
