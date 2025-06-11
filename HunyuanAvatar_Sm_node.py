@@ -109,7 +109,7 @@ class HY_Avatar_Loader:
             "text_encoder_infer_mode": "encoder",
             "prompt_template_video": "li-dit-encode-video",
             "hidden_state_skip_layer": 2,
-            "apply_final_norm": True,
+            "apply_final_norm": False, # NEED CHECK
             "text_encoder_2": "clipL",
             "text_encoder_precision_2": "fp16",
             "text_states_dim_2": 768,
@@ -270,8 +270,10 @@ class HY_Avatar_PreData:
             motion_pose = batch["motion_bucket_id_heads"].to(device)
             
             pixel_value_ref = batch['pixel_value_ref'].to(device)  # (b f c h w) 取值范围[0,255]
-            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=1.25)  #小脸才行
-
+           
+            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0)  #小脸才行
+    
+            print(pixel_value_ref.shape,face_masks.shape)
             pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
             uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
             pixel_value_ref = pixel_value_ref / 127.5 - 1.             
@@ -298,6 +300,7 @@ class HY_Avatar_PreData:
                     clip_skip=None,#TODO
                     text_encoder=text_encoder,
                     data_type="video", 
+                    name=None,
                     # **kwargs
                 )
             prompt_embeds_2, negative_prompt_embeds_2, prompt_mask_2, negative_prompt_mask_2 = encode_prompt_audio_text_base(
@@ -320,6 +323,7 @@ class HY_Avatar_PreData:
             negative_prompt_embeds=negative_prompt_embeds.to(device,dtype=torch.float16)
             prompt_embeds_2=prompt_embeds_2.to(device,dtype=torch.float16)
             negative_prompt_embeds_2=negative_prompt_embeds_2.to(device,dtype=torch.float16)
+          
             batch_dict= {"audio_prompts":audio_prompts,"uncond_audio_prompts":uncond_audio_prompts,"motion_exp":motion_exp,"motion_pose":motion_pose,"face_masks":face_masks,
                          "prompt_embeds":prompt_embeds,"negative_prompt_embeds":negative_prompt_embeds,"prompt_mask":prompt_mask,"negative_prompt_mask":negative_prompt_mask,"prompt_embeds_2":prompt_embeds_2,
                          "negative_prompt_embeds_2":negative_prompt_embeds_2,"prompt_mask_2":prompt_mask_2,"negative_prompt_mask_2":negative_prompt_mask_2,
