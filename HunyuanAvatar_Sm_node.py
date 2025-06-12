@@ -75,7 +75,7 @@ class HY_Avatar_Loader:
             "ip_cfg_scale": 0,
             "infer_steps": 50,
             "use_deepcache": 1,
-            "flow_shift_eval_video": None,
+            "flow_shift_eval_video": 5.0,
             "use_linear_quadratic_schedule": True,
             "use_attention_mask": True,
             "linear_schedule_end": 25,
