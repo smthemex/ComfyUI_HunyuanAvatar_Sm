@@ -252,8 +252,8 @@ class HY_Avatar_PreData:
                 **kwargs,
             )
 
-        sampler = DistributedSampler(video_dataset, num_replicas=1, rank=0, shuffle=False, drop_last=False)
-        json_loader = DataLoader(video_dataset, batch_size=1, shuffle=False, sampler=sampler, drop_last=False)
+        #sampler = DistributedSampler(video_dataset, num_replicas=1, rank=0, shuffle=False, drop_last=False)
+        json_loader = DataLoader(video_dataset, batch_size=1, shuffle=False,  drop_last=False)
         emb_data=[]
 
         for index,batch in enumerate(json_loader):
