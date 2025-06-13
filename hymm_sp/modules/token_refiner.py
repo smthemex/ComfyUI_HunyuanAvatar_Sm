@@ -208,8 +208,8 @@ class SingleTokenRefiner(nn.Module):
             context_aware_representations = (
                 (x * mask_float).sum(dim=1) / mask_float.sum(dim=1)
             )
-        if  self.cpu_offload:
-            context_aware_representations=  context_aware_representations.to(dtype=x.dtype) # fp8模式下须转化fp16,不然self.c_embedder混合精度报错 
+        # if  self.cpu_offload:
+        #     context_aware_representations=  context_aware_representations.to(dtype=x.dtype) # fp8模式下须转化fp16,不然self.c_embedder混合精度报错 
         context_aware_representations = self.c_embedder(context_aware_representations)
         c = timestep_aware_representations + context_aware_representations
 
