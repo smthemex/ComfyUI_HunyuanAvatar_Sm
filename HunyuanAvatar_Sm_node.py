@@ -168,6 +168,7 @@ class HY_Avatar_EncoderLoader:
                                    reproduce = args.reproduce,
                                    logger = logger,
                                    device = 'cpu' if args.cpu_offload else device ,
+                                   cpu_offload=args.cpu_offload,
                                    )
         text_encoder_2 = None
         if args.text_encoder_2 is not None:
@@ -179,6 +180,7 @@ class HY_Avatar_EncoderLoader:
                                          reproduce=args.reproduce,
                                          logger=logger,
                                          device='cpu' if args.cpu_offload else device , # if not args.use_cpu_offload else 'cpu'
+                                         cpu_offload=args.cpu_offload,
                                          )
         return (text_encoder,text_encoder_2,args)   
 
