@@ -11,7 +11,7 @@ from transformers import (
 from transformers.utils import ModelOutput
 from ..constants import TEXT_ENCODER_PATH, TOKENIZER_PATH, PRECISION_TO_TYPE
 
-CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", True))
+# CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", True))
 #print(f'text_encoder: cpu_offload={CPU_OFFLOAD}')
 
 def use_default(value, default):
@@ -112,6 +112,7 @@ class TextEncoder(nn.Module):
                  reproduce: bool = False,
                  logger=None,
                  device=None,
+                 cpu_offload: bool = False
                  ):
         super().__init__()
         self.text_encoder_type = text_encoder_type
@@ -129,7 +130,7 @@ class TextEncoder(nn.Module):
         self.apply_final_norm = apply_final_norm
         self.reproduce = reproduce
         self.logger = logger
-
+        self.cpu_offload=  cpu_offload
         self.use_video_template = self.prompt_template_video is not None
         if self.use_video_template:
             if self.prompt_template_video is not None:
@@ -245,7 +246,7 @@ class TextEncoder(nn.Module):
         use_attention_mask = use_default(use_attention_mask, self.use_attention_mask)
         hidden_state_skip_layer = use_default(hidden_state_skip_layer, self.hidden_state_skip_layer)
         do_sample = use_default(do_sample, not self.reproduce)
-        if CPU_OFFLOAD:
+        if self.cpu_offload:
             self.model.to('cuda')
             print(f'encode prompt: move text_encoder to cuda')
 
@@ -279,7 +280,7 @@ class TextEncoder(nn.Module):
             if crop_start > 0:
                 last_hidden_state = last_hidden_state[:, crop_start:]
                 attention_mask = attention_mask[:, crop_start:] if use_attention_mask else None
-        if CPU_OFFLOAD:
+        if self.cpu_offload:
             self.model.to('cpu')
             torch.cuda.empty_cache()
             print(f'encode prompt successful: move text_encoder to cpu')
