@@ -110,8 +110,8 @@ class AudioProjNet2(ModelMixin):
         audio_embeds = rearrange(audio_embeds, "bz f w b c -> (bz f) w b c")
         batch_size, window_size, blocks, channels = audio_embeds.shape
         audio_embeds = audio_embeds.view(batch_size, window_size * blocks * channels)
-        if audio_embeds.dtype != self.proj1.weight.dtype: #cpu offload get error
-            audio_embeds = audio_embeds.to(dtype=self.proj1.weight.dtype)
+        # if audio_embeds.dtype != self.proj1.weight.dtype: #cpu offload get error
+        #     audio_embeds = audio_embeds.to(dtype=self.proj1.weight.dtype)
         audio_embeds = torch.relu(self.proj1(audio_embeds))
         audio_embeds = torch.relu(self.proj2(audio_embeds))
 
@@ -179,9 +179,9 @@ class PerceiverAttentionCA(nn.Module):
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
         weight = (q * scale) @ (k * scale).transpose(-2, -1)  # More stable with f16 than dividing afterwards
-        orig_dtype = weight.dtype
-        weight = torch.softmax(weight.float(), dim=-1).to(orig_dtype) # 模型过了softmax后又转回fp32
-        #weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
+        # orig_dtype = weight.dtype
+        # weight = torch.softmax(weight.float(), dim=-1).to(orig_dtype) # 模型过了softmax后又转回fp32
+        weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
         
         out = weight @ v
         
