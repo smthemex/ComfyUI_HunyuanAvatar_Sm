@@ -120,7 +120,7 @@ class DecoderOutput2(BaseOutput):
 MODEL_OUTPUT_PATH = os.environ.get('MODEL_OUTPUT_PATH')
 MODEL_BASE = os.environ.get('MODEL_BASE')
 
-CPU_OFFLOAD = os.environ.get("CPU_OFFLOAD", True) #windows 默认开启卸载及单卡运行
+#CPU_OFFLOAD = os.environ.get("CPU_OFFLOAD", True) #windows 默认开启卸载及单卡运行
 DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
 #print(f'vae: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
@@ -240,8 +240,9 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         )
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
+        self.cup_offload=False
 
-        use_trt_engine = False #if CPU_OFFLOAD else True
+        use_trt_engine = False #if self.cup_offload else True
         # ============= parallism related code ===================
         self.parallel_decode = use_trt_engine
         self.nccl_gather = nccl_gather
@@ -252,6 +253,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.engine_path = engine_path
         
         self.use_trt_decoder = use_trt_engine
+        
 
     @property
     def igather(self):
@@ -317,6 +319,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         """
         self.use_slicing = False
 
+    def is_cpu_offload(self):
+        self.cup_offload=True
 
     def load_trt_decoder(self):
         self.use_trt_decoder = True
@@ -813,7 +817,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         overlap_size = int(self.tile_latent_min_tsize * (1 - self.tile_overlap_factor)) #16*0.75=12
         blend_extent = int(self.tile_sample_min_tsize * self.tile_overlap_factor) #16*0.25=4
         t_limit = self.tile_sample_min_tsize - blend_extent #16-4=12
-        rank = 0 if CPU_OFFLOAD or DISABLE_SP else mpi_rank()
+        rank = 0 if self.cpu_offload or DISABLE_SP else mpi_rank()
         row = []
         for i in range(0, T, overlap_size):
             tile = z[:, :, i : i + self.tile_latent_min_tsize + 1, :, :]
@@ -826,7 +830,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             if i > 0 and (not (self.parallel_decode and self.gather_to_rank0) or rank == 0):
                 decoded = decoded[:, :, 1:, :, :]
             row.append(decoded)
-        if not CPU_OFFLOAD and not DISABLE_SP and self.parallel_decode and self.gather_to_rank0 and rank != 0:
+        if not self.cpu_offload and not DISABLE_SP and self.parallel_decode and self.gather_to_rank0 and rank != 0:
+
             return DecoderOutput(sample=None)
         result_row = []
         for i, tile in enumerate(row):
