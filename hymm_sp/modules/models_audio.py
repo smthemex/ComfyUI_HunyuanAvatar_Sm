@@ -522,8 +522,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.audio_adapter_blocks = nn.ModuleList([
             PerceiverAttentionCA(dim=3072, dim_head=1024, heads=33) for _ in range(len(self.double_stream_list) + len(self.single_stream_list))
         ])
-        if self.cpu_offload:
-            self.half()
+        # if self.cpu_offload:
+        #     self.half()
 
 
 
