@@ -89,7 +89,7 @@ class Inference(object):
         # ============================= Build extra models ========================
         # VAE
         print("="*25, f"load vae", "="*25)
-        vae, _, s_ratio, t_ratio = load_vae(args.vae, args.vae_precision, logger=logger, device='cpu' if args.cpu_offload else device)
+        vae, _, s_ratio, t_ratio = load_vae(args.vae, args.vae_precision, logger=logger, device='cpu' if args.cpu_offload else device,cpu_offload=args.cpu_offload)
         vae_kwargs = {'s_ratio': s_ratio, 't_ratio': t_ratio}
         
         # # Text encoder
