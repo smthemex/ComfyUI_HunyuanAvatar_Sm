@@ -457,8 +457,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
     def _decode(self, z: torch.FloatTensor, return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
         assert len(z.shape) == 5, "The input tensor should have 5 dimensions"
-        z = z.to(RECOMMENDED_DTYPE)
-        print(f"z.shape: {z.shape}",self.tile_latent_min_tsize) # torch.Size([1, 16, 70, 32, 32]) 16
+        #z = z.to(RECOMMENDED_DTYPE)
+        print(f"z.shape: {z.shape}",self.tile_latent_min_tsize,z.dtype) # torch.Size([1, 16, 70, 32, 32]) 16
         if self.use_temporal_tiling and z.shape[2] > self.tile_latent_min_tsize:
             return self.temporal_tiled_decode(z, return_dict=return_dict)
         
@@ -593,7 +593,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             row = []
             for j in range(0, x.shape[-1], overlap_size):
                 tile = x[:, :, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
-                tile = tile.to(RECOMMENDED_DTYPE)
+                #tile = tile.to(RECOMMENDED_DTYPE)
                 tile = self.encoder(tile)
                 tile = self.quant_conv(tile)
                 row.append(tile)
@@ -653,7 +653,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             for i in range(0, z.shape[-2], overlap_size):
                 for j in range(0, z.shape[-1], overlap_size):
                     tile = z[:, :, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
-                    tile = tile.to(RECOMMENDED_DTYPE)
+                    #tile = tile.to(RECOMMENDED_DTYPE)
                     if self.use_padding and (tile.shape[-2] < self.tile_latent_min_size or tile.shape[-1] < self.tile_latent_min_size):
                         from torch.nn import functional as F
                         after_h = tile.shape[-2] * 8
@@ -784,7 +784,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         row = []
         for i in range(0, T, overlap_size):
             tile = x[:, :, i : i + self.tile_sample_min_tsize + 1, :, :]
-            tile = tile.to(RECOMMENDED_DTYPE)
+          
             if self.use_spatial_tiling and (tile.shape[-1] > self.tile_sample_min_size or tile.shape[-2] > self.tile_sample_min_size):
                 tile = self.spatial_tiled_encode(tile, return_moments=True)
             else:
@@ -821,7 +821,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         row = []
         for i in range(0, T, overlap_size):
             tile = z[:, :, i : i + self.tile_latent_min_tsize + 1, :, :]
-            tile = tile.to(RECOMMENDED_DTYPE)
+            
             if self.use_spatial_tiling and (tile.shape[-1] > self.tile_latent_min_size or tile.shape[-2] > self.tile_latent_min_size):
                 decoded = self.spatial_tiled_decode(tile, return_dict=True).sample
             else:
