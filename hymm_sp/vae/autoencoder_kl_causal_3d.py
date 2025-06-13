@@ -240,7 +240,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         )
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
-        self.cup_offload=False
+        self.cpu_offload=False
 
         use_trt_engine = False #if self.cup_offload else True
         # ============= parallism related code ===================
@@ -320,7 +320,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.use_slicing = False
 
     def is_cpu_offload(self):
-        self.cup_offload=True
+        self.cpu_offload=True
 
     def load_trt_decoder(self):
         self.use_trt_decoder = True
