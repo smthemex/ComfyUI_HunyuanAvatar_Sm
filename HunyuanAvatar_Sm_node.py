@@ -85,7 +85,6 @@ class HY_Avatar_Loader:
             "use_fp8": use_fp8,
             "cpu_offload": cpu_offload,
             "infer_min": True,
-            "prompt_template_video": "default",
             "precision": "fp16",#bf16
             "reproduce": True,
             "num_images": 1,
