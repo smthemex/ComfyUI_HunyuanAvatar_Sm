@@ -1,0 +1,428 @@
+{
+  "id": "6916a703-9969-4f13-a27c-43aa57c3c307",
+  "revision": 0,
+  "last_node_id": 20,
+  "last_link_id": 45,
+  "nodes": [
+    {
+      "id": 10,
+      "type": "HY_Avatar_Loader",
+      "pos": [
+        33.28688049316406,
+        -28.462265014648438
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL_HY_AVATAR_MODEL",
+          "links": [
+            39
+          ]
+        },
+        {
+          "name": "args",
+          "type": "HY_AVATAR_MODEL_ARGS",
+          "links": [
+            38
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HY_Avatar_Loader"
+      },
+      "widgets_values": [
+        "mp_rank_00_model_states.pt",
+        false,
+        true
+      ]
+    },
+    {
+      "id": 13,
+      "type": "LoadImage",
+      "pos": [
+        31.10797882080078,
+        343.5068054199219
+      ],
+      "size": [
+        270,
+        314
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            44
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "0001.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "HY_Avatar_Sampler",
+      "pos": [
+        845.1754760742188,
+        41.178104400634766
+      ],
+      "size": [
+        167.26034545898438,
+        66
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL_HY_AVATAR_MODEL",
+          "link": 40
+        },
+        {
+          "name": "json_loader",
+          "type": "AVATAR_PREDATA",
+          "link": 41
+        },
+        {
+          "name": "audio_model",
+          "type": "HY_AUDIO_MODEL",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            34
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HY_Avatar_Sampler"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 20,
+      "type": "HY_Avatar_PreData",
+      "pos": [
+        396.775390625,
+        55.578094482421875
+      ],
+      "size": [
+        412.9090881347656,
+        582.6363525390625
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL_HY_AVATAR_MODEL",
+          "link": 39
+        },
+        {
+          "name": "args",
+          "type": "HY_AVATAR_MODEL_ARGS",
+          "link": 38
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 43
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL_HY_AVATAR_MODEL",
+          "links": [
+            40
+          ]
+        },
+        {
+          "name": "json_loader",
+          "type": "AVATAR_PREDATA",
+          "links": [
+            41
+          ]
+        },
+        {
+          "name": "audio_model",
+          "type": "HY_AUDIO_MODEL",
+          "links": [
+            42
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HY_Avatar_PreData"
+      },
+      "widgets_values": [
+        25,
+        256,
+        192,
+        512,
+        192,
+        128,
+        "A person sits cross-legged by a campfire in a forested area.",
+        "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes",
+        5,
+        false,
+        "person",
+        80538225,
+        "randomize",
+        25,
+        7.5,
+        true
+      ]
+    },
+    {
+      "id": 16,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1052.0247802734375,
+        80.68415832519531
+      ],
+      "size": [
+        270,
+        511.5
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 34
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 45
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "frame_rate"
+          },
+          "link": 35
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00006.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 25
+          }
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "LoadAudio",
+      "pos": [
+        27.688934326171875,
+        154.23745727539062
+      ],
+      "size": [
+        270,
+        136
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            43,
+            45
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "3.WAV",
+        null,
+        null
+      ]
+    }
+  ],
+  "links": [
+    [
+      34,
+      19,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      35,
+      19,
+      1,
+      16,
+      4,
+      "FLOAT"
+    ],
+    [
+      38,
+      10,
+      1,
+      20,
+      1,
+      "HY_AVATAR_MODEL_ARGS"
+    ],
+    [
+      39,
+      10,
+      0,
+      20,
+      0,
+      "MODEL_HY_AVATAR_MODEL"
+    ],
+    [
+      40,
+      20,
+      0,
+      19,
+      0,
+      "MODEL_HY_AVATAR_MODEL"
+    ],
+    [
+      41,
+      20,
+      1,
+      19,
+      1,
+      "AVATAR_PREDATA"
+    ],
+    [
+      42,
+      20,
+      2,
+      19,
+      2,
+      "HY_AUDIO_MODEL"
+    ],
+    [
+      43,
+      14,
+      0,
+      20,
+      2,
+      "AUDIO"
+    ],
+    [
+      44,
+      13,
+      0,
+      20,
+      3,
+      "IMAGE"
+    ],
+    [
+      45,
+      14,
+      0,
+      16,
+      1,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        162.65649661358754,
+        135.51790679738224
+      ]
+    },
+    "frontendVersion": "1.21.6"
+  },
+  "version": 0.4
+}

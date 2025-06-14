@@ -149,8 +149,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
             A scheduler to be used in combination with `unet` to denoise the encoded image latents.
     """
 
-    #model_cpu_offload_seq = "text_encoder->text_encoder_2->transformer->vae"
-    model_cpu_offload_seq = "transformer->vae"
+    model_cpu_offload_seq = "text_encoder->text_encoder_2->transformer->vae"
     _optional_components = ["text_encoder_2"]
     _exclude_from_cpu_offload = ["transformer"]
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
@@ -158,10 +157,10 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
     def __init__(
         self,
         vae: AutoencoderKL,
-        # text_encoder: TextEncoder,
+        text_encoder: TextEncoder,
         transformer: HYVideoDiffusionTransformer,
         scheduler: KarrasDiffusionSchedulers,
-        # text_encoder_2: Optional[TextEncoder] = None,
+        text_encoder_2: Optional[TextEncoder] = None,
         progress_bar_config: Dict[str, Any] = None,
         args=None,
     ):
@@ -206,10 +205,10 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
 
         self.register_modules(
             vae=vae,
-            #text_encoder=text_encoder,
+            text_encoder=text_encoder,
             transformer=transformer,
             scheduler=scheduler,
-           # text_encoder_2=text_encoder_2
+            text_encoder_2=text_encoder_2
         )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
@@ -820,12 +819,6 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         enable_tiling: bool = False,
         n_tokens: Optional[int] = None,
         embedded_guidance_scale: Optional[float] = None,
-        prompt_mask= None, # 直接输入
-        negative_prompt_mask=None,    
-        prompt_embeds_2 = None,
-        negative_prompt_embeds_2 = None,
-        prompt_mask_2 = None,
-        negative_prompt_mask_2 = None,
         **kwargs,
     ):
         r"""
@@ -912,7 +905,6 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         """
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
-        use_fp8=kwargs.pop("use_fp8", False)
         if callback is not None:
             deprecate(
                 "callback",
@@ -937,21 +929,20 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         # to deal with lora scaling and other possible forward hooks
 
         # 1. Check inputs. Raise error if not correct
-        # #pass check
-        # self.check_inputs(
-        #     prompt,
-        #     height,
-        #     width,
-        #     frame,
-        #     callback_steps,
-        #     pixel_value_llava,
-        #     uncond_pixel_value_llava,
-        #     negative_prompt,
-        #     prompt_embeds,
-        #     negative_prompt_embeds,
-        #     callback_on_step_end_tensor_inputs,
-        #     vae_ver=vae_ver
-        # )
+        self.check_inputs(
+            prompt,
+            height,
+            width,
+            frame,
+            callback_steps,
+            pixel_value_llava,
+            uncond_pixel_value_llava,
+            negative_prompt,
+            prompt_embeds,
+            negative_prompt_embeds,
+            callback_on_step_end_tensor_inputs,
+            vae_ver=vae_ver
+        )
 
         self._guidance_scale = guidance_scale
         self.start_cfg_scale = guidance_scale
@@ -977,48 +968,47 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
 
  
         # ========== Encode text prompt (image prompt) ==========
-        if prompt is not None:
-            prompt_embeds, negative_prompt_embeds, prompt_mask, negative_prompt_mask = \
+        prompt_embeds, negative_prompt_embeds, prompt_mask, negative_prompt_mask = \
+            self.encode_prompt_audio_text_base(
+                prompt=prompt,
+                uncond_prompt=negative_prompt,
+                pixel_value_llava=pixel_value_llava,
+                uncond_pixel_value_llava=uncond_pixel_value_llava,
+                device=device,
+                num_images_per_prompt=num_videos_per_prompt,
+                do_classifier_free_guidance=self.do_classifier_free_guidance,
+                negative_prompt=negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=lora_scale,
+                clip_skip=self.clip_skip,
+                text_encoder=self.text_encoder,
+                data_type=data_type, 
+                # **kwargs
+            )
+        if self.text_encoder_2 is not None:
+            prompt_embeds_2, negative_prompt_embeds_2, prompt_mask_2, negative_prompt_mask_2 = \
                 self.encode_prompt_audio_text_base(
                     prompt=prompt,
                     uncond_prompt=negative_prompt,
-                    pixel_value_llava=pixel_value_llava,
-                    uncond_pixel_value_llava=uncond_pixel_value_llava,
+                    pixel_value_llava=None,
+                    uncond_pixel_value_llava=None,
                     device=device,
                     num_images_per_prompt=num_videos_per_prompt,
                     do_classifier_free_guidance=self.do_classifier_free_guidance,
                     negative_prompt=negative_prompt,
-                    prompt_embeds=prompt_embeds,
-                    negative_prompt_embeds=negative_prompt_embeds,
+                    prompt_embeds=None,
+                    negative_prompt_embeds=None,
                     lora_scale=lora_scale,
                     clip_skip=self.clip_skip,
-                    text_encoder=self.text_encoder,
-                    data_type=data_type, 
+                    text_encoder=self.text_encoder_2,
                     # **kwargs
                 )
-            if self.text_encoder_2 is not None:
-                prompt_embeds_2, negative_prompt_embeds_2, prompt_mask_2, negative_prompt_mask_2 = \
-                    self.encode_prompt_audio_text_base(
-                        prompt=prompt,
-                        uncond_prompt=negative_prompt,
-                        pixel_value_llava=None,
-                        uncond_pixel_value_llava=None,
-                        device=device,
-                        num_images_per_prompt=num_videos_per_prompt,
-                        do_classifier_free_guidance=self.do_classifier_free_guidance,
-                        negative_prompt=negative_prompt,
-                        prompt_embeds=None,
-                        negative_prompt_embeds=None,
-                        lora_scale=lora_scale,
-                        clip_skip=self.clip_skip,
-                        text_encoder=self.text_encoder_2,
-                        # **kwargs
-                    )
-            else:
-                prompt_embeds_2 = None
-                negative_prompt_embeds_2 = None
-                prompt_mask_2 = None
-                negative_prompt_mask_2 = None
+        else:
+            prompt_embeds_2 = None
+            negative_prompt_embeds_2 = None
+            prompt_mask_2 = None
+            negative_prompt_mask_2 = None
 
 
         # For classifier free guidance, we need to do two forward passes.
@@ -1046,7 +1036,6 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         )
 
         video_length = audio_prompts.shape[1] // 4 * 4 + 1
-        print(f"video_length: {video_length}")
         if "884" in vae_ver:
             video_length = (video_length - 1) // 4 + 1
         elif "888" in vae_ver:
@@ -1321,8 +1310,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
                         callback(step_idx, t, latents)
 
         latents = latents_all.float()[:, :, :video_length] 
-        if cpu_offload: 
-            torch.cuda.empty_cache()
+        if cpu_offload: torch.cuda.empty_cache()
 
         if not output_type == "latent":
             expand_temporal_dim = False
@@ -1344,40 +1332,16 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
             with torch.autocast(device_type="cuda", dtype=vae_dtype, enabled=vae_autocast_enabled):
                 if enable_tiling:
                     self.vae.enable_tiling()
-                    try:
-                        self.maybe_free_model_hooks() #move transfomer to cpu
-                        if cpu_offload:
-                            self.vae.post_quant_conv.to('cuda')
-                            self.vae.decoder.to('cuda')
-                        image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
-                        decode_done=True
-                    except: #OOM 则改成 CPU解码，很慢
-                        print('OOM, use CPU to decode')
-                        self.maybe_free_model_hooks() #move transfomer to cpu
-                        self.vae.post_quant_conv.to('cpu')
-                        self.vae.decoder.to('cpu')
-
-                        if  cpu_offload:
-                            latents= latents.to(device=torch.device("cpu"),dtype=vae_dtype)
-                        try:
-                            print('use CPU to decode disable tiling')
-                            self.vae.disable_tiling()
-                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
-                            decode_done=True
-                        except:
-                            print('use CPU to decode enable tiling')
-                            self.vae.enable_tiling()
-                            image = self.vae.decode(latents, return_dict=False, generator=generator)[0]    
-                            decode_done=False
+                    if cpu_offload:
+                        self.vae.post_quant_conv.to('cuda')
+                        self.vae.decoder.to('cuda')
+                    image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
                     self.vae.disable_tiling()
-                    if cpu_offload and decode_done:
+                    if cpu_offload:
                         self.vae.post_quant_conv.to('cpu')
                         self.vae.decoder.to('cpu')
                         torch.cuda.empty_cache()
                 else:
-                    if cpu_offload:
-                        self.vae.post_quant_conv.to('cuda')
-                        self.vae.decoder.to('cuda')
                     image = self.vae.decode(latents, return_dict=False, generator=generator)[0]
             if image is None:
                 return (None, )
@@ -1385,15 +1349,9 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
             if expand_temporal_dim or image.shape[2] == 1:
                 image = image.squeeze(2)
 
-            image = (image / 2 + 0.5).clamp(0, 1)
-            # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
-            image = image.cpu().float()
-        else:
-            if hasattr(self.vae.config, 'shift_factor') and self.vae.config.shift_factor:
-                image = latents / self.vae.config.scaling_factor + self.vae.config.shift_factor
-            else:
-                image = latents / self.vae.config.scaling_factor
-       
+        image = (image / 2 + 0.5).clamp(0, 1)
+        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
+        image = image.cpu().float()
 
         # Offload all models
         self.maybe_free_model_hooks()

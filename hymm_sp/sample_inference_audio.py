@@ -14,14 +14,14 @@ def align_to(value, alignment):
     return int(math.ceil(value / alignment) * alignment)
 
 class HunyuanVideoSampler(Inference):
-    def __init__(self, args, vae, vae_kwargs,  model,  pipeline=None,
+    def __init__(self, args, vae, vae_kwargs, text_encoder, model, text_encoder_2=None, pipeline=None,
                  device=0, logger=None):
-        super().__init__(args, vae, vae_kwargs,  model, 
+        super().__init__(args, vae, vae_kwargs, text_encoder, model, text_encoder_2=text_encoder_2,
                          pipeline=pipeline,  device=device, logger=logger)
         
         self.args = args
         self.pipeline = load_diffusion_pipeline(
-            args, 0, self.vae, self.model,
+            args, 0, self.vae, self.text_encoder, self.text_encoder_2, self.model,
             device=self.device)
         print('load hunyuan model successful... ')
 
@@ -61,7 +61,8 @@ class HunyuanVideoSampler(Inference):
 
     @torch.no_grad()
     def predict(self, 
-                args, batch,emb_dict,**kwargs):
+                args, batch, wav2vec, feature_extractor, align_instance,
+                **kwargs):
         """
         Predict the image from the given text.
 
@@ -82,46 +83,46 @@ class HunyuanVideoSampler(Inference):
         
         out_dict = dict()
 
-        #emb_dict=e_data["emb_dict"] # use comfy text encoder
-        #audio_emb_ditct = e_data["audio_emb_dict"]
-        # prompt = batch['text_prompt'][0]
-        # image_path = str(batch["image_path"][0])
-        # audio_path = str(batch["audio_path"][0])
-        #neg_prompt = "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"
+        prompt = batch['text_prompt'][0]
+        image_path = str(batch["image_path"][0])
+        audio_path = str(batch["audio_path"][0])
+        neg_prompt = "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"
         # videoid = batch['videoid'][0]
         fps = batch["fps"].to(self.device)
-        
-        # audio_prompts = batch["audio_prompts"].to(self.device)
-        # weight_dtype = audio_prompts.dtype
-
-        # audio_prompts = [encode_audio(wav2vec, audio_feat.to(dtype=wav2vec.dtype), fps.item(), num_frames=batch["audio_len"][0]) for audio_feat in audio_prompts]
-        # audio_prompts = torch.cat(audio_prompts, dim=0).to(device=self.device, dtype=weight_dtype)
-        # if audio_prompts.shape[1] <= 129:
-        #     audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1,129-audio_prompts.shape[1], 1, 1, 1)], dim=1)
+        audio_prompts = batch["audio_prompts"].to(self.device)
+        # if args.cpu_offload:
+        #     weight_dtype=torch.float16
         # else:
-        #     audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1, 5, 1, 1, 1)], dim=1)
-        
-        # wav2vec.to("cpu")
-        # torch.cuda.empty_cache()
+        weight_dtype = audio_prompts.dtype
 
-        # uncond_audio_prompts = torch.zeros_like(audio_prompts[:,:129])
-        # motion_exp = batch["motion_bucket_id_exps"].to(self.device)
-        # motion_pose = batch["motion_bucket_id_heads"].to(self.device)
+        audio_prompts = [encode_audio(wav2vec, audio_feat.to(dtype=wav2vec.dtype), fps.item(), num_frames=batch["audio_len"][0]) for audio_feat in audio_prompts]
+        audio_prompts = torch.cat(audio_prompts, dim=0).to(device=self.device, dtype=weight_dtype)
+        if audio_prompts.shape[1] <= 129:
+            audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1,129-audio_prompts.shape[1], 1, 1, 1)], dim=1)
+        else:
+            audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1, 5, 1, 1, 1)], dim=1)
         
-        # pixel_value_ref = batch['pixel_value_ref'].to(self.device)  # (b f c h w) 取值范围[0,255]
-        # face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0) 
+        wav2vec.to("cpu")
+        torch.cuda.empty_cache()
 
-        # pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
-        # uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
-        # pixel_value_ref = pixel_value_ref / 127.5 - 1.             
-        # uncond_pixel_value_ref = uncond_pixel_value_ref * 2 - 1    
+        uncond_audio_prompts = torch.zeros_like(audio_prompts[:,:129])
+        motion_exp = batch["motion_bucket_id_exps"].to(self.device)
+        motion_pose = batch["motion_bucket_id_heads"].to(self.device)
         
-        # pixel_value_ref_for_vae = rearrange(pixel_value_ref, "b f c h w -> b c f h w")
-        # uncond_uncond_pixel_value_ref = rearrange(uncond_pixel_value_ref, "b f c h w -> b c f h w")
+        pixel_value_ref = batch['pixel_value_ref'].to(self.device)  # (b f c h w) 取值范围[0,255]
+        face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0) 
 
-        # pixel_value_llava = batch["pixel_value_ref_llava"].to(self.device)
-        # pixel_value_llava = rearrange(pixel_value_llava, "b f c h w -> (b f) c h w")
-        # uncond_pixel_value_llava = pixel_value_llava.clone()
+        pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
+        uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
+        pixel_value_ref = pixel_value_ref / 127.5 - 1.             
+        uncond_pixel_value_ref = uncond_pixel_value_ref * 2 - 1    
+        
+        pixel_value_ref_for_vae = rearrange(pixel_value_ref, "b f c h w -> b c f h w")
+        uncond_uncond_pixel_value_ref = rearrange(uncond_pixel_value_ref, "b f c h w -> b c f h w")
+
+        pixel_value_llava = batch["pixel_value_ref_llava"].to(self.device)
+        pixel_value_llava = rearrange(pixel_value_llava, "b f c h w -> (b f) c h w")
+        uncond_pixel_value_llava = pixel_value_llava.clone()
     
         # ========== Encode reference latents ==========
         vae_dtype = self.vae.dtype
@@ -131,8 +132,8 @@ class HunyuanVideoSampler(Inference):
                 self.vae.to('cuda')
 
             self.vae.enable_tiling()
-            ref_latents = self.vae.encode(emb_dict["pixel_value_ref_for_vae"].clone()).latent_dist.sample()
-            uncond_ref_latents = self.vae.encode(emb_dict["uncond_uncond_pixel_value_ref"]).latent_dist.sample()
+            ref_latents = self.vae.encode(pixel_value_ref_for_vae.clone()).latent_dist.sample()
+            uncond_ref_latents = self.vae.encode(uncond_uncond_pixel_value_ref).latent_dist.sample()
             self.vae.disable_tiling()
             if hasattr(self.vae.config, 'shift_factor') and self.vae.config.shift_factor:
                 ref_latents.sub_(self.vae.config.shift_factor).mul_(self.vae.config.scaling_factor)
@@ -144,10 +145,8 @@ class HunyuanVideoSampler(Inference):
             if args.cpu_offload:
                 self.vae.to('cpu')
                 torch.cuda.empty_cache()
-
-        #print(ref_latents.dtype)  #float32
-        ref_latents= ref_latents.to(dtype=self.vae.dtype) #VAE出来的latents是float32的  ,但是后续code都需要float16   
-        face_masks = torch.nn.functional.interpolate(emb_dict["face_masks"].float().squeeze(2), 
+                
+        face_masks = torch.nn.functional.interpolate(face_masks.float().squeeze(2), 
                                                 (ref_latents.shape[-2], 
                                                 ref_latents.shape[-1]), 
                                                 mode="bilinear").unsqueeze(2).to(dtype=ref_latents.dtype)
@@ -168,65 +167,58 @@ class HunyuanVideoSampler(Inference):
 
         generator = torch.Generator(device=self.device).manual_seed(args.seed)
 
-        # debug_str = f"""
-        #             prompt: {prompt}
-        #         image_path: {image_path}
-        #         audio_path: {audio_path}
-        #    negative_prompt: {neg_prompt}
-        #               seed: {args.seed}
-        #                fps: {fps.item()}
-        #        infer_steps: {args.infer_steps}
-        #      target_height: {target_height}
-        #       target_width: {target_width}
-        #      target_length: {target_length}
-        #     guidance_scale: {args.cfg_scale}
-        #     """
-        # self.logger.info(debug_str)
+        debug_str = f"""
+                    prompt: {prompt}
+                image_path: {image_path}
+                audio_path: {audio_path}
+           negative_prompt: {neg_prompt}
+                      seed: {args.seed}
+                       fps: {fps.item()}
+               infer_steps: {args.infer_steps}
+             target_height: {target_height}
+              target_width: {target_width}
+             target_length: {target_length}
+            guidance_scale: {args.cfg_scale}
+            """
+        self.logger.info(debug_str)
         pipeline_kwargs = {
-            "cpu_offload": args.cpu_offload,
-            "use_fp8": args.use_fp8,
+            "cpu_offload": args.cpu_offload
         }
         start_time = time.time()
-        samples = self.pipeline(prompt=None,                                
+        samples = self.pipeline(prompt=prompt,                                
                                 height=target_height,
                                 width=target_width,
                                 frame=target_length,
                                 num_inference_steps=args.infer_steps,
                                 guidance_scale=args.cfg_scale,                      # cfg scale
                          
-                                negative_prompt=None,
+                                negative_prompt=neg_prompt,
                                 num_images_per_prompt=args.num_images,
                                 generator=generator,
-                                prompt_embeds=emb_dict["prompt_embeds"],
+                                prompt_embeds=None,
 
                                 ref_latents=ref_latents,                            # [1, 16, 1, h//8, w//8]
                                 uncond_ref_latents=uncond_ref_latents,
-                                pixel_value_llava=emb_dict["pixel_value_llava"],                # [1, 3, 336, 336]
-                                uncond_pixel_value_llava=emb_dict["uncond_pixel_value_llava"],
+                                pixel_value_llava=pixel_value_llava,                # [1, 3, 336, 336]
+                                uncond_pixel_value_llava=uncond_pixel_value_llava,
                                 face_masks=face_masks,                              # [b f h w]
-                                audio_prompts=emb_dict["audio_prompts"], 
-                                uncond_audio_prompts=emb_dict["uncond_audio_prompts"], 
-                                motion_exp=emb_dict["motion_exp"], 
-                                motion_pose=emb_dict["motion_pose"], 
+                                audio_prompts=audio_prompts, 
+                                uncond_audio_prompts=uncond_audio_prompts, 
+                                motion_exp=motion_exp, 
+                                motion_pose=motion_pose, 
                                 fps=fps, 
                                 
                                 num_videos_per_prompt=1,
                                 attention_mask=None,
-                                negative_prompt_embeds=emb_dict["negative_prompt_embeds"],
+                                negative_prompt_embeds=None,
                                 negative_attention_mask=None,
-                                output_type="pli",
+                                output_type="pil",
                                 freqs_cis=(freqs_cos, freqs_sin),
                                 n_tokens=n_tokens,
                                 data_type='video',
                                 is_progress_bar=True,
                                 vae_ver=self.args.vae,
                                 enable_tiling=self.args.vae_tiling,
-                                prompt_mask= emb_dict["prompt_mask"], # 直接输入
-                                negative_prompt_mask=emb_dict["negative_prompt_mask"],    
-                                prompt_embeds_2 = emb_dict["prompt_embeds_2"],
-                                negative_prompt_embeds_2 = emb_dict["negative_prompt_embeds_2"],
-                                prompt_mask_2 = emb_dict["prompt_mask_2"],
-                                negative_prompt_mask_2 = emb_dict["negative_prompt_mask_2"],
                                 **pipeline_kwargs
                                 )[0]
         if samples is None:
@@ -235,7 +227,7 @@ class HunyuanVideoSampler(Inference):
         gen_time = time.time() - start_time
         logger.info(f"Success, time: {gen_time}")
         
-        #wav2vec.to(self.device)
+        wav2vec.to(self.device)
         
         return out_dict
     

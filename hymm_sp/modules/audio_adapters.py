@@ -46,7 +46,6 @@ from .parallel_states import (
     all_to_all_4D,
 )
 
-
 class AudioProjNet2(ModelMixin):
     """Audio Projection Model
 
@@ -110,7 +109,7 @@ class AudioProjNet2(ModelMixin):
         audio_embeds = rearrange(audio_embeds, "bz f w b c -> (bz f) w b c")
         batch_size, window_size, blocks, channels = audio_embeds.shape
         audio_embeds = audio_embeds.view(batch_size, window_size * blocks * channels)
-        # if audio_embeds.dtype != self.proj1.weight.dtype: #cpu offload get error
+        # if audio_embeds.dtype != self.proj1.weight.dtype: # cpu offload get error
         #     audio_embeds = audio_embeds.to(dtype=self.proj1.weight.dtype)
         audio_embeds = torch.relu(self.proj1(audio_embeds))
         audio_embeds = torch.relu(self.proj2(audio_embeds))
@@ -165,13 +164,10 @@ class PerceiverAttentionCA(nn.Module):
             latent (torch.Tensor): latent features
                 shape (b, t, hw, D)
         """
-        # x = x.to(dtype=torch.float16) # 
-        # latents = latents.to(dtype=torch.float16)#
-        #print("x, latents: ", x.dtype, latents.dtype)
         x = self.norm1(x)
         latents = self.norm2(latents)
-      
-        
+        # print("latents shape: ", latents.shape)
+        # print("x shape: ", x.shape)
         q = self.to_q(latents)
         k, v = self.to_kv(x).chunk(2, dim=-1)
 
@@ -179,10 +175,7 @@ class PerceiverAttentionCA(nn.Module):
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
         weight = (q * scale) @ (k * scale).transpose(-2, -1)  # More stable with f16 than dividing afterwards
-        # orig_dtype = weight.dtype
-        # weight = torch.softmax(weight.float(), dim=-1).to(orig_dtype) # 模型过了softmax后又转回fp32
         weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
-        
         out = weight @ v
         
         # out = out.permute(0, 2, 1, 3)

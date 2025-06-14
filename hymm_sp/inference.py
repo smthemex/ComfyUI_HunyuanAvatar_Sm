@@ -17,9 +17,9 @@ class Inference(object):
                  args,
                  vae, 
                  vae_kwargs, 
-                 #text_encoder, 
+                 text_encoder, 
                  model, 
-                 #text_encoder_2=None, 
+                 text_encoder_2=None, 
                  pipeline=None, 
                  cpu_offload=False,
                  device=None, 
@@ -27,8 +27,8 @@ class Inference(object):
         self.vae = vae
         self.vae_kwargs = vae_kwargs
         
-        # self.text_encoder = text_encoder
-        # self.text_encoder_2 = text_encoder_2
+        self.text_encoder = text_encoder
+        self.text_encoder_2 = text_encoder_2
         
         self.model = model
         self.pipeline = pipeline
@@ -92,46 +92,46 @@ class Inference(object):
         vae, _, s_ratio, t_ratio = load_vae(args.vae, args.vae_precision, logger=logger, device='cpu' if args.cpu_offload else device,cpu_offload=args.cpu_offload)
         vae_kwargs = {'s_ratio': s_ratio, 't_ratio': t_ratio}
         
-        # # Text encoder
-        # if args.prompt_template_video is not None:
-        #     crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get("crop_start", 0)
-        # else:
-        #     crop_start = 0
-        # max_length = args.text_len + crop_start
+        # Text encoder
+        if args.prompt_template_video is not None:
+            crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get("crop_start", 0)
+        else:
+            crop_start = 0
+        max_length = args.text_len + crop_start
 
-        # # prompt_template_video
-        # prompt_template_video = PROMPT_TEMPLATE[args.prompt_template_video] if args.prompt_template_video is not None else None
-        # print("="*25, f"load llava", "="*25)
-        # text_encoder = TextEncoder(text_encoder_type = args.text_encoder,
-        #                            max_length = max_length,
-        #                            text_encoder_precision = args.text_encoder_precision,
-        #                            tokenizer_type = args.tokenizer,
-        #                            use_attention_mask = args.use_attention_mask,
-        #                            prompt_template_video = prompt_template_video,
-        #                            hidden_state_skip_layer = args.hidden_state_skip_layer,
-        #                            apply_final_norm = args.apply_final_norm,
-        #                            reproduce = args.reproduce,
-        #                            logger = logger,
-        #                            device = 'cpu' if args.cpu_offload else device ,
-        #                            )
-        # text_encoder_2 = None
-        # if args.text_encoder_2 is not None:
-        #     text_encoder_2 = TextEncoder(text_encoder_type=args.text_encoder_2,
-        #                                  max_length=args.text_len_2,
-        #                                  text_encoder_precision=args.text_encoder_precision_2,
-        #                                  tokenizer_type=args.tokenizer_2,
-        #                                  use_attention_mask=args.use_attention_mask,
-        #                                  reproduce=args.reproduce,
-        #                                  logger=logger,
-        #                                  device='cpu' if args.cpu_offload else device , # if not args.use_cpu_offload else 'cpu'
-        #                                  )
+        # prompt_template_video
+        prompt_template_video = PROMPT_TEMPLATE[args.prompt_template_video] if args.prompt_template_video is not None else None
+        print("="*25, f"load llava", "="*25)
+        text_encoder = TextEncoder(text_encoder_type = args.text_encoder,
+                                   max_length = max_length,
+                                   text_encoder_precision = args.text_encoder_precision,
+                                   tokenizer_type = args.tokenizer,
+                                   use_attention_mask = args.use_attention_mask,
+                                   prompt_template_video = prompt_template_video,
+                                   hidden_state_skip_layer = args.hidden_state_skip_layer,
+                                   apply_final_norm = args.apply_final_norm,
+                                   reproduce = args.reproduce,
+                                   logger = logger,
+                                   device = 'cpu' if args.cpu_offload else device ,
+                                   )
+        text_encoder_2 = None
+        if args.text_encoder_2 is not None:
+            text_encoder_2 = TextEncoder(text_encoder_type=args.text_encoder_2,
+                                         max_length=args.text_len_2,
+                                         text_encoder_precision=args.text_encoder_precision_2,
+                                         tokenizer_type=args.tokenizer_2,
+                                         use_attention_mask=args.use_attention_mask,
+                                         reproduce=args.reproduce,
+                                         logger=logger,
+                                         device='cpu' if args.cpu_offload else device , # if not args.use_cpu_offload else 'cpu'
+                                         )
 
         return cls(args=args, 
                    vae=vae, 
                    vae_kwargs=vae_kwargs, 
-                   #text_encoder=text_encoder,
+                   text_encoder=text_encoder,
                    model=model, 
-                   #text_encoder_2=text_encoder_2, 
+                   text_encoder_2=text_encoder_2, 
                    device=device, 
                    logger=logger)
 

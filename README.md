@@ -3,7 +3,7 @@
 
 TIPS:
 -----
-* 即便按官方源代码（仅修改mat1 mat2数据不匹配的问题）来适配cpu卸载，还是出黑图，甚至为了这个把flash attn 和torch都降级到官方版本需求，也还是出黑图。还是去捣鼓GP版本的吧。
+* 黑图的原因可能是是diffuser版本限定33.0，以及precision我强行改成fb16的缘故，终于复现了。
 
 
 1.Installation  

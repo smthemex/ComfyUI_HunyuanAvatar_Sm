@@ -1,5 +1,5 @@
 opencv-python
-diffusers
+diffusers==0.33.0
 transformers==4.45.1
 accelerate
 pandas
@@ -15,6 +15,5 @@ safetensors
 #uvicorn==0.34.2
 decord
 librosa
-#scikit-video
+scikit-video
 ffmpeg
-flash_attn
