@@ -2,22 +2,15 @@
 # -*- coding: UTF-8 -*-
 import os
 import torch
-import gc
 import numpy as np
-from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 import random
 import io
 import torchaudio
-from loguru import logger
 from einops import rearrange
 from omegaconf import OmegaConf
-from PIL import Image
-from .hymm_sp.sample_gpu_poor import hunyuan_avatar_main,tranformer_load,audio_image_load,encode_prompt_audio_text_base
 from .node_utils import tensor2pil_upscale,gc_clear
-from .hymm_sp.data_kits.audio_preprocessor import encode_audio, get_facemask
-from .hymm_sp.text_encoder import TextEncoder
-from .hymm_sp.constants import PROMPT_TEMPLATE
+from .hymm_sp.sample_gpu_poor import tranformer_load,audio_image_load
 from .hymm_sp.data_kits.audio_dataset import VideoAudioTextLoaderVal
 
 import folder_paths
@@ -48,9 +41,7 @@ class HY_Avatar_Loader:
             "required": {
                 "transformer": (["none"] + [i for i in folder_paths.get_filename_list("HunyuanAvatar") if i.endswith(".pt")],),
                 "use_fp8":  ("BOOLEAN", {"default": True},),
-                "cpu_offload":  ("BOOLEAN", {"default": True},),
-               
-                
+                "cpu_offload":  ("BOOLEAN", {"default": True},),             
             },
         }
 
@@ -85,10 +76,10 @@ class HY_Avatar_Loader:
             "use_fp8": use_fp8,
             "cpu_offload": cpu_offload,
             "infer_min": True,
-            "precision": "fp16",#bf16
+            "precision": "bf16",#bf16
             "reproduce": True,
             "num_images": 1,
-            "val_disable_autocast": True,
+            "val_disable_autocast": False,
             "pos_prompt": "",
             "neg_prompt": "",
             "save_path_suffix": "",
@@ -131,59 +122,6 @@ class HY_Avatar_Loader:
 
 
 
-class HY_Avatar_EncoderLoader:
-    def __init__(self):
-        pass
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "args": ("HY_AVATAR_MODEL_ARGS",),
-            },
-        }
-
-    RETURN_TYPES = ("MODEL_HY_AVATAR_text_encoder","MODEL_HY_AVATAR_text_encoder_2","HY_AVATAR_MODEL_ARGS")
-    RETURN_NAMES = ("text_encoder","text_encoder_2","args")
-    FUNCTION = "loader_main"
-    CATEGORY = "HunyuanAvatar_Sm"
-
-    def loader_main(self, args,):
-        if args.prompt_template_video is not None:
-            crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get("crop_start", 0)
-        else:
-            crop_start = 0
-        max_length = args.text_len + crop_start
-        # prompt_template_video
-        prompt_template_video = PROMPT_TEMPLATE[args.prompt_template_video] if args.prompt_template_video is not None else None
-        print("="*25, f"load llava", "="*25)
-        text_encoder = TextEncoder(text_encoder_type = args.text_encoder,
-                                   max_length = max_length,
-                                   text_encoder_precision = args.text_encoder_precision,
-                                   tokenizer_type = args.tokenizer,
-                                   use_attention_mask = args.use_attention_mask,
-                                   prompt_template_video = prompt_template_video,
-                                   hidden_state_skip_layer = args.hidden_state_skip_layer,
-                                   apply_final_norm = args.apply_final_norm,
-                                   reproduce = args.reproduce,
-                                   logger = logger,
-                                   device = 'cpu' if args.cpu_offload else device ,
-                                   cpu_offload=args.cpu_offload,
-                                   )
-        text_encoder_2 = None
-        if args.text_encoder_2 is not None:
-            text_encoder_2 = TextEncoder(text_encoder_type=args.text_encoder_2,
-                                         max_length=args.text_len_2,
-                                         text_encoder_precision=args.text_encoder_precision_2,
-                                         tokenizer_type=args.tokenizer_2,
-                                         use_attention_mask=args.use_attention_mask,
-                                         reproduce=args.reproduce,
-                                         logger=logger,
-                                         device='cpu' if args.cpu_offload else device , # if not args.use_cpu_offload else 'cpu'
-                                         cpu_offload=args.cpu_offload,
-                                         )
-        return (text_encoder,text_encoder_2,args)   
-
 class HY_Avatar_PreData:
     def __init__(self):
         pass
@@ -192,11 +130,10 @@ class HY_Avatar_PreData:
     def INPUT_TYPES(s):
         return {
             "required": {
+                "model": ("MODEL_HY_AVATAR_MODEL",),
+                "args": ("HY_AVATAR_MODEL_ARGS",),
                 "audio": ("AUDIO",),
                 "image": ("IMAGE",),""
-                "text_encoder": ("MODEL_HY_AVATAR_text_encoder",),
-                "text_encoder_2": ("MODEL_HY_AVATAR_text_encoder_2",),
-                "args": ("HY_AVATAR_MODEL_ARGS",),
                 "fps": ([25.0, 12.5],),
                 "width": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
                 "height": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
@@ -208,15 +145,19 @@ class HY_Avatar_PreData:
                 "duration": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 100000000000.0, "step": 0.1}),
                 "infer_min":  ("BOOLEAN", {"default": True},),
                 "object_name": ("STRING", {"multiline": False,"default": "girl"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": MAX_SEED}),
+                "steps": ("INT", {"default": 25, "min": 3, "max": 1024, "step": 1}),
+                "cfg_scale": ("FLOAT", {"default": 7.5, "min": 1, "max": 20, "step": 0.1}),
+                "vae_tiling":  ("BOOLEAN", {"default": True},),
 
             }}
 
-    RETURN_TYPES = ("AVATAR_PREDATA",)
-    RETURN_NAMES = ("data_dict", )
+    RETURN_TYPES = ("MODEL_HY_AVATAR_MODEL","AVATAR_PREDATA","HY_AUDIO_MODEL")
+    RETURN_NAMES = ("model", "json_loader", "audio_model")
     FUNCTION = "sampler_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, audio, image,text_encoder,text_encoder_2,args,fps,width,height,video_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,object_name):
+    def sampler_main(self, model,args,audio, image,fps,width,height,video_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,object_name,seed,steps,cfg_scale,vae_tiling,):
         # save audio to wav file
         audio_file_prefix = ''.join(random.choice("0123456789") for _ in range(6))
         audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
@@ -229,17 +170,27 @@ class HY_Avatar_PreData:
         with open(audio_path, 'wb') as f:
             f.write(buff.getbuffer())
 
+        # load audio model
         wav2vec, feature_extractor, align_instance = audio_image_load(Hunyuan_Avatar_Weigths_Path, device)
+
+        # args
         args.video_size=video_size
         if video_length>128:
             infer_min=False
         args.infer_min=infer_min
         args.image_size=image_size
         args.sample_n_frames=video_length+1
-   
+        args.pos_prompt=prompt
+        args.neg_prompt=negative_prompt
+        args.cfg_scale=cfg_scale
+        args.steps=steps
+        args.seed=seed
+        args.vae_tiling=vae_tiling
+        
+        # pre data
         kwargs = {
-                "text_encoder": text_encoder, 
-                "text_encoder_2": text_encoder_2, 
+                "text_encoder": model.text_encoder, 
+                "text_encoder_2": model.text_encoder_2, 
                 "feature_extractor": feature_extractor, 
             }
         video_dataset = VideoAudioTextLoaderVal(
@@ -250,115 +201,14 @@ class HY_Avatar_PreData:
                 prompt=prompt,
                 fps=fps,
                 infer_duration=infer_duration,
+                name=object_name,
                 **kwargs,
             )
 
         #sampler = DistributedSampler(video_dataset, num_replicas=1, rank=0, shuffle=False, drop_last=False)
-        json_loader = DataLoader(video_dataset, batch_size=1, shuffle=False,  drop_last=False)
-        emb_data=[]
-
-        for index,batch in enumerate(json_loader):
-            audio_prompts = batch["audio_prompts"].to(device)
-            weight_dtype = audio_prompts.dtype
-
-            audio_prompts = [encode_audio(wav2vec, audio_feat.to(dtype=wav2vec.dtype), fps, num_frames=batch["audio_len"][0]) for audio_feat in audio_prompts]
-            audio_prompts = torch.cat(audio_prompts, dim=0).to(device=device, dtype=weight_dtype)
-            print(audio_prompts.shape) #torch.Size([1, 272, 10, 5, 384]) #batch["audio_len"] 272
-            if audio_prompts.shape[1] <= 129: #补帧足129
-                audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1,129-audio_prompts.shape[1], 1, 1, 1)], dim=1)
-            else:
-                audio_prompts = torch.cat([audio_prompts, torch.zeros_like(audio_prompts[:, :1]).repeat(1, 5, 1, 1, 1)], dim=1)
-            
-            uncond_audio_prompts = torch.zeros_like(audio_prompts[:,:129])
-            motion_exp = batch["motion_bucket_id_exps"].to(device)
-            motion_pose = batch["motion_bucket_id_heads"].to(device)
-            
-            pixel_value_ref = batch['pixel_value_ref'].to(device)  # (b f c h w) 取值范围[0,255]
-           
-            face_masks = get_facemask(pixel_value_ref.clone(), align_instance, area=3.0)  #小脸才行 # (b c f h w)
-
-            print(pixel_value_ref.shape,face_masks.shape) #ttorch.Size([1, 1, 3, 384, 384]) torch.Size([1, 1, 1, 384, 384])
-            # pixel_value_ref_=pixel_value_ref.clone().squeeze(0).squeeze(0)
-            # img_np = pixel_value_ref_.permute(1, 2, 0).cpu().numpy()
-            # if img_np.max() <= 1.0:
-            #     img_np = (img_np * 255).astype(np.uint8)
-            # else:
-            #     img_np = img_np.astype(np.uint8)
-            # Image.fromarray(img_np).save("123.png")
-
-            # img_tensor = face_masks.clone().squeeze(0).squeeze(0).squeeze(0)
-            # img_np = img_tensor.cpu().numpy()
-            # if img_np.max() > 1.0 or img_np.min() < 0:
-            #     img_np = (img_np - img_np.min()) / (img_np.max() - img_np.min())
-            #     img_np = (img_np * 255).astype(np.uint8)
-            # else:
-            #     img_np = (img_np * 255).astype(np.uint8)
-            # Image.fromarray(img_np, mode='L').save("1234.png")
-            
-
-
-
-            pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
-            uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
-            pixel_value_ref = pixel_value_ref / 127.5 - 1.             
-            uncond_pixel_value_ref = uncond_pixel_value_ref * 2 - 1    
-            
-            pixel_value_ref_for_vae = rearrange(pixel_value_ref, "b f c h w -> b c f h w")
-            uncond_uncond_pixel_value_ref = rearrange(uncond_pixel_value_ref, "b f c h w -> b c f h w")
-
-            pixel_value_llava = batch["pixel_value_ref_llava"].to(device)
-            pixel_value_llava = rearrange(pixel_value_llava, "b f c h w -> (b f) c h w")
-            uncond_pixel_value_llava = pixel_value_llava.clone()
-            prompt_embeds, negative_prompt_embeds, prompt_mask, negative_prompt_mask = encode_prompt_audio_text_base(
-                    prompt=prompt,
-                    uncond_prompt=negative_prompt,
-                    pixel_value_llava=pixel_value_llava,
-                    uncond_pixel_value_llava=uncond_pixel_value_llava,
-                    device=device,
-                    num_images_per_prompt=1,
-                    do_classifier_free_guidance=True,#self.do_classifier_free_guidance,,#TODO
-                    negative_prompt=negative_prompt,
-                    prompt_embeds=None,
-                    negative_prompt_embeds=None,
-                    lora_scale=None,#TODO
-                    clip_skip=None,#TODO
-                    text_encoder=text_encoder,
-                    data_type="video", 
-                    name=object_name,
-                    # **kwargs
-                )
-            prompt_embeds_2, negative_prompt_embeds_2, prompt_mask_2, negative_prompt_mask_2 = encode_prompt_audio_text_base(
-                        prompt=prompt,
-                        uncond_prompt=negative_prompt,
-                        pixel_value_llava=None,
-                        uncond_pixel_value_llava=None,
-                        device=device,
-                        num_images_per_prompt=1,
-                        do_classifier_free_guidance=True,#self.do_classifier_free_guidance,#TODO
-                        negative_prompt=negative_prompt,
-                        prompt_embeds=None,
-                        negative_prompt_embeds=None,
-                        lora_scale=None,#TODO
-                        clip_skip=None,#TODO
-                        text_encoder=text_encoder_2,
-                        # **kwargs
-                    )
-            prompt_embeds=prompt_embeds.to(device,dtype=torch.float16)
-            negative_prompt_embeds=negative_prompt_embeds.to(device,dtype=torch.float16)
-            prompt_embeds_2=prompt_embeds_2.to(device,dtype=torch.float16)
-            negative_prompt_embeds_2=negative_prompt_embeds_2.to(device,dtype=torch.float16)
-          
-            batch_dict= {"audio_prompts":audio_prompts,"uncond_audio_prompts":uncond_audio_prompts,"motion_exp":motion_exp,"motion_pose":motion_pose,"face_masks":face_masks,
-                         "prompt_embeds":prompt_embeds,"negative_prompt_embeds":negative_prompt_embeds,"prompt_mask":prompt_mask,"negative_prompt_mask":negative_prompt_mask,"prompt_embeds_2":prompt_embeds_2,
-                         "negative_prompt_embeds_2":negative_prompt_embeds_2,"prompt_mask_2":prompt_mask_2,"negative_prompt_mask_2":negative_prompt_mask_2,
-                         "pixel_value_ref_for_vae":pixel_value_ref_for_vae,"uncond_uncond_pixel_value_ref":uncond_uncond_pixel_value_ref,"pixel_value_llava":pixel_value_llava,"uncond_pixel_value_llava":uncond_pixel_value_llava
-                
-            }
-            emb_data.append(batch_dict)
-        wav2vec.to("cpu")
-        text_encoder,text_encoder_2=None,None
+        json_loader = DataLoader(video_dataset, batch_size=1, shuffle=False,drop_last=False)
         gc_clear()
-        return ({"json_loader": json_loader, "fps":fps,"emb_data":emb_data,"args":args},)
+        return (model,json_loader,{"wav2vec": wav2vec, "feature_extractor": feature_extractor, "align_instance":align_instance, "fps":fps})
 
 
 class HY_Avatar_Sampler:
@@ -370,11 +220,9 @@ class HY_Avatar_Sampler:
         return {
             "required": {
                 "model": ("MODEL_HY_AVATAR_MODEL",),
-                "data_dict": ("AVATAR_PREDATA",),  # {}
-                "seed": ("INT", {"default": 0, "min": 0, "max": MAX_SEED}),
-                "steps": ("INT", {"default": 25, "min": 3, "max": 1024, "step": 1}),
-                "cfg_scale": ("FLOAT", {"default": 7.5, "min": 1, "max": 20, "step": 0.1}),
-                 "vae_tiling":  ("BOOLEAN", {"default": True},),
+                "json_loader": ("AVATAR_PREDATA",),  # {}
+                "audio_model": ("HY_AUDIO_MODEL",),
+              
             }}
 
     RETURN_TYPES = ("IMAGE", "FLOAT")
@@ -382,30 +230,48 @@ class HY_Avatar_Sampler:
     FUNCTION = "sampler_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, model, data_dict, seed,steps,cfg_scale,vae_tiling):
+    def sampler_main(self, model, json_loader,audio_model,):
+        videolist = []
+        for batch_index, batch in enumerate(json_loader, start=1):
 
-        print("***********Start infer  ***********")
-        args=data_dict.get("args")
-        args.seed = seed
-        args.infer_steps = steps
-        args.cfg_scale = cfg_scale
-        args.vae_tiling = vae_tiling
-        iamge = hunyuan_avatar_main(args,model,data_dict.get("json_loader"),data_dict.get("emb_data"),args.infer_min)
-        gc.collect()
-        torch.cuda.empty_cache()
-        return (iamge, data_dict.get("fps"))
+            if model.args.infer_min:
+                batch["audio_len"][0] = 129
+            fps = batch["fps"]    
+            audio_path = batch["audio_path"][0]
+            samples = model.predict(model.args, batch, audio_model["wav2vec"], audio_model["feature_extractor"], audio_model["align_instance"])
+            
+            sample = samples['samples'][0].unsqueeze(0)                    # denoised latent, (bs, 16, t//4, h//8, w//8)
+            sample = sample[:, :, :batch["audio_len"][0]]
+            
+            video = rearrange(sample[0], "c f h w -> f h w c")
+            videolist.append(video)
+            video_ = (video * 255.).data.cpu().numpy().astype(np.uint8)  # （f h w c)
+            torch.cuda.empty_cache()
+
+            final_frames = []
+            for frame in video_:
+                final_frames.append(frame)
+            final_frames = np.stack(final_frames, axis=0)
+            import imageio
+            output_path=os.path.join(folder_paths.get_output_directory(), f"video_{batch_index}.mp4")
+           
+            imageio.mimsave(output_path, final_frames, fps=fps.item())
+            #os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
+
+            gc_clear()
+
+
+        return (videolist[0], audio_model["fps"])
 
 
 NODE_CLASS_MAPPINGS = {
     "HY_Avatar_Loader": HY_Avatar_Loader,
-    "HY_Avatar_EncoderLoader": HY_Avatar_EncoderLoader,
     "HY_Avatar_PreData": HY_Avatar_PreData,
     "HY_Avatar_Sampler": HY_Avatar_Sampler,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "HY_Avatar_Loader": "HY_Avatar_Loader",
-    "HY_Avatar_EncoderLoader": "HY_Avatar_EncoderLoader",
     "HY_Avatar_PreData": "HY_Avatar_PreData",
     "HY_Avatar_Sampler": "HY_Avatar_Sampler",
 }

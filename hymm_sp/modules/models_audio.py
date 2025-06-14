@@ -16,6 +16,7 @@ from .mlp_layers import MLP, MLPEmbedder, FinalLayer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .token_refiner import SingleTokenRefiner
 from .audio_adapters import AudioProjNet2, PerceiverAttentionCA
+
 from .parallel_states import (
     nccl_info,
     get_cu_seqlens,
@@ -24,9 +25,9 @@ from .parallel_states import (
     all_gather,
 )
 
-
+# CPU_OFFLOAD = True
 DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
-
+#print(f'models: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
 class DoubleStreamBlock(nn.Module):
     def __init__(
@@ -38,14 +39,13 @@ class DoubleStreamBlock(nn.Module):
         qk_norm: bool = True,
         qk_norm_type: str = 'rms',
         qkv_bias: bool = False,
+        cpu_offload = False,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
-        cpu_offload: bool = False,
     ):
-        factory_kwargs = {'device': device, 'dtype': dtype,}
+        factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.cpu_offload=  cpu_offload
-        #print("cpu_offload",self.cpu_offload)
+
         self.deterministic = False
         self.num_heads = num_heads
         head_dim = hidden_size // num_heads
@@ -53,7 +53,7 @@ class DoubleStreamBlock(nn.Module):
 
         self.img_mod = ModulateDiT(hidden_size, factor=6, act_layer=get_activation_layer("silu"), **factory_kwargs)
         self.img_norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs)
-
+        self.cpu_offload = cpu_offload
         self.img_attn_qkv = nn.Linear(hidden_size, hidden_size * 3, bias=qkv_bias, **factory_kwargs)
         qk_norm_layer = get_norm_layer(qk_norm_type)
         self.img_attn_q_norm = (
@@ -126,7 +126,6 @@ class DoubleStreamBlock(nn.Module):
         txt_mod1_shift, txt_mod1_scale, txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate = (
             self.txt_mod(vec).chunk(6, dim=-1)
         )
-       
         if self.cpu_offload: torch.cuda.empty_cache()
 
         # Prepare image for attention.
@@ -181,7 +180,7 @@ class DoubleStreamBlock(nn.Module):
                 max_seqlen_kv,
             )
             attn = attn.view(img_k.shape[0], max_seqlen_q, -1).contiguous()
-        else: #分布式
+        else:
                 attn, _ = parallel_attention(
                 (img_q, txt_q),
                 (img_k, txt_k),
@@ -223,13 +222,14 @@ class SingleStreamBlock(nn.Module):
         qk_norm: bool = True,
         qk_norm_type: str = 'rms',
         qk_scale: float = None,
+        cpu_offload = False,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
-        cpu_offload: bool = False,
+        
     ):
-        factory_kwargs = {'device': device, 'dtype': dtype,}
+        factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.cpu_offload = cpu_offload
+
         self.deterministic = False
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -237,6 +237,7 @@ class SingleStreamBlock(nn.Module):
         mlp_hidden_dim = int(hidden_size * mlp_width_ratio)
         self.mlp_hidden_dim = mlp_hidden_dim
         self.scale = qk_scale or head_dim**-0.5
+        self.cpu_offload = cpu_offload
 
         # qkv and mlp_in
         self.linear1 = nn.Linear(hidden_size, hidden_size * 3 + mlp_hidden_dim, **factory_kwargs)
@@ -277,7 +278,6 @@ class SingleStreamBlock(nn.Module):
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: Tuple[torch.Tensor, torch.Tensor] = None,
     ) -> torch.Tensor:
-       
         mod_shift, mod_scale, mod_gate = (
             self.modulation(vec).chunk(3, dim=-1)
         )
@@ -381,7 +381,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
     ):
-        factory_kwargs = {'device': device, 'dtype': dtype, }
+        factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
 
         # Text projection. Default to linear projection.
@@ -390,8 +390,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.text_states_dim = args.text_states_dim
         self.use_attention_mask = args.use_attention_mask
         self.text_states_dim_2 = args.text_states_dim_2
-        self.cpu_offload = args.cpu_offload
-        #print("cpu_offload",self.cpu_offload)
+
         # Now we only use above configs from args.
         self.patch_size = patch_size
         self.in_channels = in_channels
@@ -399,7 +398,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.unpatchify_channels = self.out_channels
         self.guidance_embed = guidance_embed
         self.rope_dim_list = rope_dim_list
-
+        self.cpu_offload = args.cpu_offload
         if hidden_size % num_heads != 0:
             raise ValueError(
                 f"Hidden size {hidden_size} must be divisible by num_heads {num_heads}"
@@ -428,9 +427,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             )
         elif self.text_projection == "single_refiner":
             self.txt_in = SingleTokenRefiner(
-                self.text_states_dim, hidden_size, num_heads, depth=2, cpu_offload=self.cpu_offload, **factory_kwargs
-            ) #add cpu_offload
-        else: 
+                self.text_states_dim, hidden_size, num_heads, depth=2, **factory_kwargs
+            )
+        else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
 
         # time modulation
@@ -459,7 +458,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
                     qkv_bias=qkv_bias,
-                    cpu_offload=self.cpu_offload, #add cup_offload
+                    cpu_offload=self.cpu_offload,
                     **factory_kwargs
                 )
                 for _ in range(depth_double_blocks)
@@ -476,7 +475,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     mlp_act_type=mlp_act_type,
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
-                    cpu_offload=self.cpu_offload,#add cup_offload
+                    cpu_offload=self.cpu_offload,
                     **factory_kwargs
                 )
                 for _ in range(depth_single_blocks)
@@ -526,7 +525,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         #     self.half()
 
 
-
     def enable_deterministic(self):
         for block in self.double_blocks:
             block.enable_deterministic()
@@ -554,7 +552,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         is_cache: bool = False,
         **additional_kwargs,
     ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
-        
         out = {}
         img = x
         txt = text_states
@@ -570,13 +567,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         vec = vec + motion_pose_vec
         fps_vec = self.fps_proj(additional_kwargs["fps"])   # (b, 3072)
         vec = vec + fps_vec
-        
         audio_feature_all = self.audio_proj(additional_kwargs["audio_prompts"])
 
         # text modulation
-        #print(f"text_states_2.dtype: {text_states_2.dtype}") # fp16 MLPEmbedder bf16 fix it in args
-        
-
         vec = vec + self.vector_in(text_states_2)
 
         # guidance modulation
@@ -588,27 +581,21 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 vec = vec + self.guidance_in(guidance)
 
         if self.cpu_offload: torch.cuda.empty_cache()
-       
-        #print(ref_latents.dtype,ref_latents.shape) #torch.float16 torch.Size([2, 16, 33, 16, 16])
 
         # Embed image and text.
         ref_latents_first = ref_latents[:, :, :1].clone()
         img, shape_mask = self.img_in(img)
-        #print(f"img.dtype: {img.dtype}",shape_mask) # torch.float16 torch.Size([1, 3072, 33, 44, 44])
         ref_latents,_ = self.ref_in(ref_latents)
         ref_latents_first,_ = self.img_in(ref_latents_first)
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
         elif self.text_projection == "single_refiner":
             # [b, l, h]
-            #print(f"txt.dtype: {txt.dtype}") # fp16
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(f"Unsupported text_projection: {self.text_projection}")
-        if self.cpu_offload:
-            img = self.before_proj(ref_latents.to(dtype=img.dtype)) + img # 此处img被转为float32,不使用float()
-        else:
-            img = self.before_proj(ref_latents) + img
+        img = self.before_proj(ref_latents) + img
+
         if self.cpu_offload: torch.cuda.empty_cache()
 
         ref_length = ref_latents_first.shape[-2]          # [b s c]
@@ -642,9 +629,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         if self.cpu_offload: torch.cuda.empty_cache()
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
-        #print(f"img.dtype: {img.dtype}",txt.dtype,vec.dtype) # torch.float32 torch.float16 torch.float16 when cpu offload
-        if self.cpu_offload: 
-            img = img.to(dtype=txt.dtype) #调回float16
         if not is_cache:
             for layer_num, block in enumerate(self.double_blocks):
                 double_block_args = [img, txt, vec, cu_seqlens_q, cu_seqlens_kv, max_seqlen_q, max_seqlen_kv, freqs_cis]
@@ -662,10 +646,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     audio_feature_all_insert = torch.cat([audio_feature_pad, audio_feature_all], dim=1).view(bsz, ot, 16, 3072)
                     
                     double_idx = self.double_stream_map[str(layer_num)]
-                    #print(audio_feature_all_insert.dtype,real_img.dtype)#torch.float32 torch.float16
-                    if self.cpu_offload:
-                        audio_feature_all_insert = audio_feature_all_insert.to(dtype=torch.float16)
-                        #print(audio_feature_all_insert.dtype,real_img.dtype)#
                     real_img = self.audio_adapter_blocks[double_idx](audio_feature_all_insert, real_img).view(bsz, -1, 3072)
                     img = img + torch.cat((real_ref_img, real_img * face_mask), dim=1)
                     if get_sequence_parallel_state():

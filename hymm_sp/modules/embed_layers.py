@@ -43,6 +43,8 @@ class PatchEmbed(nn.Module):
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
+        # if x.dtype != self.proj.weight.dtype:  # cup offload 
+        #     x = x.to(dtype=self.proj.weight.dtype)
         x = self.proj(x)
         shape = x.shape
         if self.flatten:

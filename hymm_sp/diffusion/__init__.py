@@ -2,7 +2,7 @@ from .pipelines import HunyuanVideoAudioPipeline
 from .schedulers import FlowMatchDiscreteScheduler
 
 
-def load_diffusion_pipeline(args, rank, vae,  model, scheduler=None,
+def load_diffusion_pipeline(args, rank, vae,text_encoder, text_encoder_2,   model, scheduler=None,
                             device=None, progress_bar_config=None):
     """ Load the denoising scheduler for inference. """
     if scheduler is None:
@@ -12,8 +12,8 @@ def load_diffusion_pipeline(args, rank, vae,  model, scheduler=None,
     progress_bar_config = progress_bar_config or {'leave': True, 'disable': rank != 0}
 
     pipeline = HunyuanVideoAudioPipeline(vae=vae,
-                                    #    text_encoder=text_encoder,
-                                    #    text_encoder_2=text_encoder_2, #remove it for comfy
+                                       text_encoder=text_encoder,
+                                       text_encoder_2=text_encoder_2, #remove it for comfy
                                        transformer=model,
                                        scheduler=scheduler,
                                     #    safety_checker=None,

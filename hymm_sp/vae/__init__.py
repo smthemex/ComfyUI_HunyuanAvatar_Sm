@@ -9,7 +9,9 @@ def load_vae(vae_type,
              sample_size=None,
              vae_path=None,
              logger=None,
-             device=None
+             device=None,
+             cpu_offload=False,
+             
              ):
     if vae_path is None:
         vae_path = VAE_PATH[vae_type]
@@ -41,7 +43,7 @@ def load_vae(vae_type,
         # vae_ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
         vae_ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items()}  
         vae.load_state_dict(vae_ckpt)
-
+       
         spatial_compression_ratio = vae.config.spatial_compression_ratio
         time_compression_ratio = vae.config.time_compression_ratio
     else:
@@ -60,5 +62,6 @@ def load_vae(vae_type,
 
     # Set vae to eval mode, even though it's dropout rate is 0.
     vae.eval()
-
+    if cpu_offload:
+        vae.is_cpu_offload()
     return vae, vae_path, spatial_compression_ratio, time_compression_ratio

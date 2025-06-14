@@ -45,6 +45,7 @@ class VideoAudioTextLoaderVal(Dataset):
         prompt: str,
         fps: float,
         infer_duration,
+        name,
         **kwargs,
     ):
         super().__init__()
@@ -61,6 +62,7 @@ class VideoAudioTextLoaderVal(Dataset):
                     "fps": fps,
                 }]
         self.infer_duration = infer_duration
+        self.name=name
         # csv_data = pd.read_csv(meta_file)
         # for idx in range(len(csv_data)):
         #     self.meta_files.append(
@@ -115,7 +117,16 @@ class VideoAudioTextLoaderVal(Dataset):
         new_h = round(h * scale / 64) * 64
 
         # if img_size == 704:
-        img_size_long = 1216
+        if img_size == 704:
+            img_size_long = 1216
+        elif img_size == 512:
+            img_size_long = 768
+        elif img_size == 384:
+            img_size_long = 576
+        elif img_size == 256:
+            img_size_long = 384
+        else:
+            img_size_long = img_size * 1.5  # Default fallback
         if new_w * new_h > img_size * img_size_long:
             import math
             scale = math.sqrt(img_size * img_size_long / w / h)
@@ -149,7 +160,7 @@ class VideoAudioTextLoaderVal(Dataset):
         
         # Encode text prompts
    
-        text_ids, text_mask = self.get_text_tokens(self.text_encoder, prompt,name=None)
+        text_ids, text_mask = self.get_text_tokens(self.text_encoder, prompt,name=self.name) # 非人则改成非人单词
         text_ids_2, text_mask_2 = self.get_text_tokens(self.text_encoder_2, prompt)
         
         # Output batch
