@@ -245,18 +245,18 @@ class HY_Avatar_Sampler:
             
             video = rearrange(sample[0], "c f h w -> f h w c")
             videolist.append(video)
-            video_ = (video * 255.).data.cpu().numpy().astype(np.uint8)  # （f h w c)
-            torch.cuda.empty_cache()
+            # video_ = (video * 255.).data.cpu().numpy().astype(np.uint8)  # （f h w c)
+            # torch.cuda.empty_cache()
 
-            final_frames = []
-            for frame in video_:
-                final_frames.append(frame)
-            final_frames = np.stack(final_frames, axis=0)
-            import imageio
-            output_path=os.path.join(folder_paths.get_output_directory(), f"video_{batch_index}.mp4")
+            # final_frames = []
+            # for frame in video_:
+            #     final_frames.append(frame)
+            # final_frames = np.stack(final_frames, axis=0)
+            # import imageio
+            # output_path=os.path.join(folder_paths.get_output_directory(), f"video_{batch_index}.mp4")
            
-            imageio.mimsave(output_path, final_frames, fps=fps.item())
-            #os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
+            # imageio.mimsave(output_path, final_frames, fps=fps.item())
+            # #os.system(f"ffmpeg -i '{output_path}' -i '{audio_path}' -shortest '{output_audio_path}' -y -loglevel quiet; rm '{output_path}'")
 
             gc_clear()
 
