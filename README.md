@@ -38,8 +38,8 @@ pip install -r requirements.txt
 |   ├──whisper-tiny/
 |         ├──config.json
 |         ├── ... 所有json文件以及model.safetensors模型
-|   ├── mp_rank_00_model_states_fp8_map.pt #104K
-|   ├── mp_rank_00_model_states_fp8.pt.pt #24.9G
+|   ├── mp_rank_00_model_states_fp8_map.pt #104K if use fp8  如果用fp8则下载
+|   ├── mp_rank_00_model_states_fp8.pt.pt #24.9G  if use fp8  如果用fp8则下载
 |   ├──mp_rank_00_model_states.pt
 ```
 4 example
