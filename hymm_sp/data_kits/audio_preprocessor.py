@@ -67,7 +67,7 @@ def get_facemask(ref_image, daul_role,align_instance, area=1.25):
     face_masks = face_masks.to(device=ref_image.device, dtype=ref_image.dtype)
     if daul_role:
         face_masks2 = torch.stack(face_masks2, dim=0)
-        face_masks2 = rearrange(face_masks, "(b f) h w c -> b c f h w", b=bsz, f=f)   # (b*f, h, w, c)
+        face_masks2 = rearrange(face_masks2, "(b f) h w c -> b c f h w", b=bsz, f=f)   # (b*f, h, w, c)
         face_masks2 = face_masks2.to(device=ref_image.device, dtype=ref_image.dtype)
     return face_masks,face_masks2
 
