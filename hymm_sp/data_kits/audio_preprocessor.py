@@ -17,7 +17,7 @@ from einops import rearrange
 
 
 
-def get_facemask(ref_image, align_instance, area=1.25):
+def get_facemask(ref_image, daul_role,align_instance, area=1.25):
     # ref_image: (b f c h w)
     bsz, f, c, h, w = ref_image.shape
     images = rearrange(ref_image, "b f c h w -> (b f) h w c").data.cpu().numpy().astype(np.uint8)
@@ -41,6 +41,23 @@ def get_facemask(ref_image, align_instance, area=1.25):
         face_mask = np.zeros_like(np.array(image_pil))
         face_mask[int(y1):int(y2), int(x1):int(x2)] = 1.0
         face_masks.append(torch.from_numpy(face_mask[...,:1]))
+        if daul_role:
+            try:
+                bboxSrc_ = bboxes_list[1]
+            except:
+                bboxSrc_ = [0, 0, w, h]
+            x1, y1, ww, hh = bboxSrc_
+            x2, y2 = x1 + ww, y1 + hh
+            ww, hh = (x2-x1) * area, (y2-y1) * area
+            center = [(x2+x1)//2, (y2+y1)//2]
+            x1 = max(center[0] - ww//2, 0)
+            y1 = max(center[1] - hh//2, 0)
+            x2 = min(center[0] + ww//2, w)
+            y2 = min(center[1] + hh//2, h)
+            
+            face_mask_ = np.zeros_like(np.array(image_pil))
+            face_mask_[int(y1):int(y2), int(x1):int(x2)] = 1.0
+            face_masks.append(torch.from_numpy(face_mask_[...,:1]))
     face_masks = torch.stack(face_masks, dim=0)     # (b*f, h, w, c)
     face_masks = rearrange(face_masks, "(b f) h w c -> b c f h w", b=bsz, f=f)
     face_masks = face_masks.to(device=ref_image.device, dtype=ref_image.dtype)
