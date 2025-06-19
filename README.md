@@ -4,6 +4,7 @@
 TIPS:
 -----
 * fix disable cpu_offload causes error. 修复关闭cpu卸载引发出错的bug
+* try dual role ,face size to contol input image face mask #测试双人代码，不一定有效 ,face size参数用是获取垫图的人脸范围，如果脸小，就用小数值，默认是3.0
 
 
 1.Installation  
@@ -45,6 +46,7 @@ pip install -r requirements.txt
 4 example
 ----
 ![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example.png)
+![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example_dual.png)
 
 ## 🔗 BibTeX
 
