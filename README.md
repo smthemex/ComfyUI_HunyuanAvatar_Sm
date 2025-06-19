@@ -46,7 +46,7 @@ pip install -r requirements.txt
 4 example
 ----
 ![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example.png)
-![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example_dual.png)
+![](https://github.com/smthemex/ComfyUI_HunyuanAvatar_Sm/blob/main/example_workflows/example_dual_.png)
 
 ## 🔗 BibTeX
 
