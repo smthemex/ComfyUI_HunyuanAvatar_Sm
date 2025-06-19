@@ -110,8 +110,8 @@ class HunyuanVideoSampler(Inference):
         motion_pose = batch["motion_bucket_id_heads"].to(self.device)
         
         pixel_value_ref = batch['pixel_value_ref'].to(self.device)  # (b f c h w) 取值范围[0,255]
-        face_masks = get_facemask(pixel_value_ref.clone(),args.get("daul_role", False), align_instance, area=args.get("face_size", 3.0)) 
-
+        face_masks,face_masks2 = get_facemask(pixel_value_ref.clone(),args.get("daul_role", False), align_instance, area=args.get("face_size", 3.0)) 
+        
 
         pixel_value_ref = pixel_value_ref.clone().repeat(1,129,1,1,1)
         uncond_pixel_value_ref = torch.zeros_like(pixel_value_ref)
@@ -183,7 +183,9 @@ class HunyuanVideoSampler(Inference):
             """
         self.logger.info(debug_str)
         pipeline_kwargs = {
-            "cpu_offload": args.cpu_offload
+            "cpu_offload": args.cpu_offload,
+            "face_mask2": face_masks2,
+
         }
         start_time = time.time()
         samples = self.pipeline(prompt=prompt,                                
