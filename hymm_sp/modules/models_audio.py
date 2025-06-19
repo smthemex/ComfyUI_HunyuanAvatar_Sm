@@ -26,7 +26,7 @@ from .parallel_states import (
 )
 
 # CPU_OFFLOAD = True
-DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
+DISABLE_SP = int(os.environ.get("DISABLE_SP", True))
 #print(f'models: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
 class DoubleStreamBlock(nn.Module):
