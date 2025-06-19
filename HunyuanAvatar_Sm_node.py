@@ -168,11 +168,12 @@ class HY_Avatar_PreData:
         audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
         if isinstance(kwargs.get("audio_d"),dict):
             audio2 = kwargs.get("audio_d")
+
             daul_role=True
             if audio["sample_rate"] != audio2["sample_rate"]:
                 raise ValueError("two audios must has same sample_rate 采样率不一致，无法直接拼接")
-            actual_duration1 = min(duration, audio["waveform"].shape[1] / audio["sample_rate"])
-            actual_duration2 = min(duration, audio2["waveform"].shape[1] / audio2["sample_rate"])
+            actual_duration1 = min(duration, audio["waveform"].squeeze(0).shape[1] / audio["sample_rate"])
+            actual_duration2 = min(duration, audio2["waveform"].squeeze(0).shape[1] / audio2["sample_rate"])
             min_duration = min(actual_duration1, actual_duration2)
             trimmed1 = trim_audio(audio, min_duration)   #trim audio
             trimmed2 = trim_audio(audio2, min_duration) 
