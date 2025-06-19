@@ -1085,6 +1085,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
         frames_per_batch = 33
         self.cache_tensor = None
 
+        face_masks2=kwargs.get(('face_masks2'),None) # [b f h w]
         """ If the total length is shorter than 129, shift is not required """
         if video_length == 33 or infer_length == 33:
             infer_length = 33
@@ -1108,6 +1109,8 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
                     dtype=latents_all.dtype,
                 ).to(device=latents_all.device)
 
+                half_point = video_length // 2
+
                 for index_start in range(0, infer_length, frames_per_batch):
                     self.scheduler._step_index = None
 
@@ -1126,12 +1129,37 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
                         latent_model_input = latents 
                         
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-                    
+
+                    # try dual
+                    if face_masks2 is not None:
+                        # 检查当前批次是否跨越中点
+                        if max(idx_list) < half_point:
+                            current_mask = face_masks
+                        elif min(idx_list) >= half_point:
+                            current_mask = face_masks2
+                        else:
+                             # 跨越中点时使用混合逻辑（需确保mask1_frames/mask2_frames为空时不报错）
+                            mask1_frames = [i for i in idx_list if i < half_point]
+                            mask2_frames = [i for i in idx_list if i >= half_point]
+                            
+                            if len(mask1_frames) > 0 and len(mask2_frames) > 0:
+                                # 创建对应帧数的掩码（单帧复制）
+                                part1 = face_masks.expand(-1, len(mask1_frames), -1, -1)
+                                part2 = face_masks2.expand(-1, len(mask2_frames), -1, -1)
+                                current_mask = torch.cat([part1, part2], dim=1)
+                            else:
+                                # 处理边界情况
+                                current_mask = face_masks if mask1_frames else face_masks2
+                    else:
+                        current_mask = face_masks
+
+
                     if self.do_classifier_free_guidance:
                         if i < 10:
                             self._guidance_scale = (1 - i / len(timesteps)) * (self.start_cfg_scale - 2) + 2
                             audio_prompts_input = torch.cat([uncond_audio_prompts, audio_prompts], dim=0)
-                            face_masks_input = torch.cat([face_masks * 0.6] * 2, dim=0)
+                            #face_masks_input = torch.cat([face_masks * 0.6] * 2, dim=0)
+                            face_masks_input = torch.cat([current_mask * 0.6] * 2, dim=0)
                         else:
                             # define 10-50 step cfg
                             self._guidance_scale = (1 - i / len(timesteps)) * (6.5 - 3.5) + 3.5  # 5-2 +2
@@ -1144,7 +1172,8 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
                             if prompt_mask_2 is not None:
                                 prompt_mask_2_input = torch.cat([prompt_mask_2, prompt_mask_2])
                             audio_prompts_input = torch.cat([uncond_audio_prompts, audio_prompts], dim=0)
-                            face_masks_input = torch.cat([face_masks] * 2, dim=0)
+                            #face_masks_input = torch.cat([face_masks] * 2, dim=0)
+                            face_masks_input = torch.cat([current_mask] * 2, dim=0)
 
                         motion_exp_input = torch.cat([motion_exp] * 2, dim=0)
                         motion_pose_input = torch.cat([motion_pose] * 2, dim=0)
@@ -1152,7 +1181,7 @@ class HunyuanVideoAudioPipeline(DiffusionPipeline):
     
                     else:
                         audio_prompts_input = audio_prompts
-                        face_masks_input = face_masks
+                        face_masks_input = current_mask #face_masks
                         motion_exp_input = motion_exp
                         motion_pose_input = motion_pose
                         fps_input = fps
