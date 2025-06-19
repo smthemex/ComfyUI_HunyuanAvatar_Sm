@@ -9,7 +9,7 @@ import io
 import torchaudio
 from einops import rearrange
 from omegaconf import OmegaConf
-from .node_utils import tensor2pil_upscale,gc_clear
+from .node_utils import tensor2pil_upscale,gc_clear,trim_audio
 from .hymm_sp.sample_gpu_poor import tranformer_load,audio_image_load
 from .hymm_sp.data_kits.audio_dataset import VideoAudioTextLoaderVal
 
@@ -106,6 +106,8 @@ class HY_Avatar_Loader:
             "tokenizer_2": "clipL",
             "text_len_2":77,
             "text_projection":"single_refiner",
+            "daul_role":False,
+            "face_size": 3.0,
             }
         args = OmegaConf.create(args_dict)
         if transformer != "none":
@@ -137,36 +139,58 @@ class HY_Avatar_PreData:
                 "fps": ([25.0, 12.5],),
                 "width": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
                 "height": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
-                "video_size": ("INT", {"default": 512, "min": 128, "max": 1216, "step": 64}),
+                "face_size": ("FLOAT", {"default": 3.0, "min": 0.5, "max": 10.0, "step": 0.1}),
                 "image_size" : ("INT", {"default": 704, "min": 128, "max": 1216, "step": 64}),
                 "video_length": ("INT", {"default": 128, "min": 128, "max": 2048, "step": 4}),
                 "prompt":("STRING", {"multiline": True,"default": "A person sits cross-legged by a campfire in a forested area."}),
                 "negative_prompt":("STRING", {"multiline": True,"default": "Aerial view, aerial view, overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, Lens changes"}),
-                "duration": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 100000000000.0, "step": 0.1}),
+                "duration": ("FLOAT", {"default": 5.0, "min": 1.0, "max": 100000000000.0, "step": 0.1}),
                 "infer_min":  ("BOOLEAN", {"default": True},),
                 "object_name": ("STRING", {"multiline": False,"default": "girl"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": MAX_SEED}),
                 "steps": ("INT", {"default": 25, "min": 3, "max": 1024, "step": 1}),
                 "cfg_scale": ("FLOAT", {"default": 7.5, "min": 1, "max": 20, "step": 0.1}),
-                "vae_tiling":  ("BOOLEAN", {"default": True},),
+                "vae_tiling":  ("BOOLEAN", {"default": True},),},
+            "optional":{
+                "audio_d": ("AUDIO",),
+                            }
 
-            }}
+            }
 
-    RETURN_TYPES = ("MODEL_HY_AVATAR_MODEL","AVATAR_PREDATA","HY_AUDIO_MODEL")
-    RETURN_NAMES = ("model", "json_loader", "audio_model")
+    RETURN_TYPES = ("MODEL_HY_AVATAR_MODEL","AVATAR_PREDATA","HY_AUDIO_MODEL","AUDIO")
+    RETURN_NAMES = ("model", "json_loader", "audio_model","audio")
     FUNCTION = "sampler_main"
     CATEGORY = "HunyuanAvatar_Sm"
 
-    def sampler_main(self, model,args,audio, image,fps,width,height,video_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,object_name,seed,steps,cfg_scale,vae_tiling,):
-        # save audio to wav file
+    def sampler_main(self, model,args,audio, image,fps,width,height,face_size,image_size,video_length,prompt,negative_prompt,duration,infer_min,object_name,seed,steps,cfg_scale,vae_tiling,**kwargs):
+        #pre audio files
         audio_file_prefix = ''.join(random.choice("0123456789") for _ in range(6))
         audio_path = os.path.join(folder_paths.get_input_directory(), f"audio_{audio_file_prefix}_temp.wav")
+        if isinstance(kwargs.get("audio_d"),dict):
+            audio2 = kwargs.get("audio_d")
+            daul_role=True
+            if audio["sample_rate"] != audio2["sample_rate"]:
+                raise ValueError("two audios must has same sample_rate 采样率不一致，无法直接拼接")
+            actual_duration1 = min(duration, audio["waveform"].shape[1] / audio["sample_rate"])
+            actual_duration2 = min(duration, audio2["waveform"].shape[1] / audio2["sample_rate"])
+            min_duration = min(actual_duration1, actual_duration2)
+            trimmed1 = trim_audio(audio, min_duration)   #trim audio
+            trimmed2 = trim_audio(audio2, min_duration) 
+            waveform = torch.cat([trimmed1, trimmed2], dim=1) 
+            infer_duration=min_duration*2
+        else:
+            waveform=audio["waveform"].squeeze(0)
+            daul_role=False
+            num_frames = waveform.shape[1]
+            duration_input = num_frames / audio["sample_rate"]
+            infer_duration=min(duration,duration_input)
+
+            
+        print(f" infer audio duration is: {duration} seconds.use {infer_duration} seconds to infer.")   
+
+        # save audio to wav file
         buff = io.BytesIO()
-        torchaudio.save(buff, audio["waveform"].squeeze(0), audio["sample_rate"], format="FLAC")
-        num_frames = audio["waveform"].squeeze(0).shape[1]
-        duration_input = num_frames / audio["sample_rate"]
-        infer_duration = min(duration,duration_input)
-        print(f"Input audio duration is {duration_input} seconds, infer audio duration is: {duration} seconds.use {infer_duration} seconds to infer.")
+        torchaudio.save(buff, waveform, audio["sample_rate"], format="FLAC")
         with open(audio_path, 'wb') as f:
             f.write(buff.getbuffer())
 
@@ -174,7 +198,8 @@ class HY_Avatar_PreData:
         wav2vec, feature_extractor, align_instance = audio_image_load(Hunyuan_Avatar_Weigths_Path, device)
 
         # args
-        args.video_size=video_size
+        args.daul_role=daul_role
+        args.face_size=face_size
         if video_length>128:
             infer_min=False
         args.infer_min=infer_min
@@ -207,8 +232,10 @@ class HY_Avatar_PreData:
 
         #sampler = DistributedSampler(video_dataset, num_replicas=1, rank=0, shuffle=False, drop_last=False)
         json_loader = DataLoader(video_dataset, batch_size=1, shuffle=False,drop_last=False)
+        if daul_role:
+            audio= {"waveform": waveform.unsqueeze(0), "sample_rate": audio["sample_rate"]} #need check
         gc_clear()
-        return (model,json_loader,{"wav2vec": wav2vec, "feature_extractor": feature_extractor, "align_instance":align_instance, "fps":fps})
+        return (model,json_loader,{"wav2vec": wav2vec, "feature_extractor": feature_extractor, "align_instance":align_instance, "fps":fps}, audio) 
 
 
 class HY_Avatar_Sampler:
@@ -236,8 +263,8 @@ class HY_Avatar_Sampler:
 
             if model.args.infer_min:
                 batch["audio_len"][0] = 129
-            fps = batch["fps"]    
-            audio_path = batch["audio_path"][0]
+            # fps = batch["fps"]    
+            # audio_path = batch["audio_path"][0]
             samples = model.predict(model.args, batch, audio_model["wav2vec"], audio_model["feature_extractor"], audio_model["align_instance"])
             
             sample = samples['samples'][0].unsqueeze(0)                    # denoised latent, (bs, 16, t//4, h//8, w//8)
