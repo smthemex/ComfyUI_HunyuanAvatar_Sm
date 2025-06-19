@@ -151,8 +151,14 @@ class HunyuanVideoSampler(Inference):
                                                 (ref_latents.shape[-2], 
                                                 ref_latents.shape[-1]), 
                                                 mode="bilinear").unsqueeze(2).to(dtype=ref_latents.dtype)
-
-
+            
+        if isinstance(face_masks2, torch.Tensor):
+            face_masks2= torch.nn.functional.interpolate(face_masks2.float().squeeze(2), 
+                                                (ref_latents.shape[-2], 
+                                                ref_latents.shape[-1]), 
+                                                mode="bilinear").unsqueeze(2).to(dtype=ref_latents.dtype)
+        else:
+            face_masks2 = None
         size = (batch['pixel_value_ref'].shape[-2], batch['pixel_value_ref'].shape[-1])
         target_length = 129
         target_height = align_to(size[0], 16)
