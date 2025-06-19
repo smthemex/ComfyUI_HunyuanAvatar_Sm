@@ -121,7 +121,7 @@ MODEL_OUTPUT_PATH = os.environ.get('MODEL_OUTPUT_PATH')
 MODEL_BASE = os.environ.get('MODEL_BASE')
 
 #CPU_OFFLOAD = os.environ.get("CPU_OFFLOAD", True) #windows 默认开启卸载及单卡运行
-DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))
+DISABLE_SP = int(os.environ.get("DISABLE_SP", True))
 #print(f'vae: cpu_offload={CPU_OFFLOAD}, DISABLE_SP={DISABLE_SP}')
 
 
