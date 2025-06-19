@@ -3,7 +3,7 @@
 
 TIPS:
 -----
-* 黑图的原因可能是是diffuser版本限定33.0，以及precision我强行改成fb16的缘故，终于复现了。测试环境，cu124，torch2.6  4070
+* fix disable cpu_offload causes error. 修复关闭cpu卸载引发出错的bug
 
 
 1.Installation  
