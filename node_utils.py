@@ -30,7 +30,16 @@ def cv2pil(cv_image):
     pil_image = Image.fromarray(rgb_image)
     return pil_image
 
-
+def trim_audio(audio, max_duration):
+    waveform = audio["waveform"].squeeze(0)
+    sample_rate = audio["sample_rate"]
+    num_frames = waveform.shape[1]
+    max_frames = int(max_duration * sample_rate)
+    
+    # 裁切到不超过最大时长
+    if num_frames > max_frames:
+        return waveform[:, :max_frames]
+    return waveform
 
 def tensor_to_pil(tensor):
     image_np = tensor.squeeze().mul(255).clamp(0, 255).byte().numpy()
