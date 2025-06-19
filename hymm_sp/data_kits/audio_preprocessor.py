@@ -21,8 +21,11 @@ def get_facemask(ref_image, daul_role,align_instance, area=1.25):
     # ref_image: (b f c h w)
     bsz, f, c, h, w = ref_image.shape
     images = rearrange(ref_image, "b f c h w -> (b f) h w c").data.cpu().numpy().astype(np.uint8)
+    print(images.shape) #(1, 192, 256, 3)
     face_masks = []
-    for image in images:
+    face_masks2=[]
+    for image in  images:
+        
         image_pil = Image.fromarray(image).convert("RGB")
         _, _, bboxes_list = align_instance(np.array(image_pil)[:,:,[2,1,0]], maxface=True)
         try:
@@ -57,11 +60,16 @@ def get_facemask(ref_image, daul_role,align_instance, area=1.25):
             
             face_mask_ = np.zeros_like(np.array(image_pil))
             face_mask_[int(y1):int(y2), int(x1):int(x2)] = 1.0
-            face_masks.append(torch.from_numpy(face_mask_[...,:1]))
-    face_masks = torch.stack(face_masks, dim=0)     # (b*f, h, w, c)
-    face_masks = rearrange(face_masks, "(b f) h w c -> b c f h w", b=bsz, f=f)
+            face_masks2.append(torch.from_numpy(face_mask_[...,:1]))
+        
+    face_masks = torch.stack(face_masks, dim=0)  
+    face_masks = rearrange(face_masks, "(b f) h w c -> b c f h w", b=bsz, f=f)   # (b*f, h, w, c)
     face_masks = face_masks.to(device=ref_image.device, dtype=ref_image.dtype)
-    return face_masks
+    if daul_role:
+        face_masks2 = torch.stack(face_masks2, dim=0)
+        face_masks2 = rearrange(face_masks, "(b f) h w c -> b c f h w", b=bsz, f=f)   # (b*f, h, w, c)
+        face_masks2 = face_masks2.to(device=ref_image.device, dtype=ref_image.dtype)
+    return face_masks,face_masks2
 
 
 def encode_audio(wav2vec, audio_feats, fps, num_frames=129):
