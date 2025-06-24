@@ -209,7 +209,7 @@ class HY_Avatar_PreData:
         args.pos_prompt=prompt
         args.neg_prompt=negative_prompt
         args.cfg_scale=cfg_scale
-        args.steps=steps
+        args.infer_steps=steps
         args.seed=seed
         args.vae_tiling=vae_tiling
         
